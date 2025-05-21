@@ -9,6 +9,8 @@ class Ticket extends Model
 {
     use HasFactory;
 
+    protected $fillable = ['booking_id', 'show_id', 'seat_id', 'code', 'name'];
+
     protected $dates = [
         'created_at',
         'updated_at',

@@ -2,16 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Reservation extends Model
 {
-    use HasFactory;
-
-    protected $dates = [
-        'reserved_until',
-    ];
+    protected $fillable = ['show_id', 'seat_id', 'reservation_token', 'reserved_until', 'user_id'];
 
     public function user()
     {
