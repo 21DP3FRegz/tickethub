@@ -22,12 +22,12 @@ const mainNavItems: NavItem[] = [
     {
         title: 'Reservations',
         href: route('reservations.index'),
-        icon: Ticket,
+        icon: ShoppingCart,
     },
     {
-        title: 'Bookings',
+        title: 'My Tickets',
         href: route('bookings.index'),
-        icon: ShoppingCart,
+        icon: Ticket,
     },
 ];
 

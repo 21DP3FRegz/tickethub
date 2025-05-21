@@ -13,13 +13,19 @@ class ConcertController extends Controller
         $query = Concert::with(['location', 'shows'])
             ->orderBy('artist');
 
-        // Simple filtering
+        // Filter by artist
+        if ($request->has('artist')) {
+            $query->where('artist', 'like', '%' . $request->input('artist') . '%');
+        }
+
+        // Filter by location
         if ($request->has('location')) {
             $query->whereHas('location', function ($q) use ($request) {
                 $q->where('name', 'like', '%' . $request->input('location') . '%');
             });
         }
 
+        // Filter by date
         if ($request->has('date')) {
             $query->whereHas('shows', function ($q) use ($request) {
                 $q->whereDate('start', $request->input('date'));
@@ -30,7 +36,7 @@ class ConcertController extends Controller
 
         return Inertia::render('concerts/Index', [
             'concerts' => $concerts,
-            'filters' => $request->only(['location', 'date']),
+            'filters' => $request->only(['location', 'date', 'artist']),
         ]);
     }
 
