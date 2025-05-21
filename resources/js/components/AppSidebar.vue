@@ -20,11 +20,6 @@ const mainNavItems: NavItem[] = [
         icon: Music,
     },
     {
-        title: 'Reservations',
-        href: route('reservations.index'),
-        icon: ShoppingCart,
-    },
-    {
         title: 'My Tickets',
         href: route('bookings.index'),
         icon: Ticket,

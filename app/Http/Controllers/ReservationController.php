@@ -20,8 +20,8 @@ class ReservationController extends Controller
             ->where('reserved_until', '>=', now())
             ->get();
 
-        return Inertia::render('reservations/Index', [
-            'reservations' => $reservations,
+        return redirect()->route('dashboard')->with([
+            'active_reservations' => $reservations,
         ]);
     }
 
@@ -52,7 +52,8 @@ class ReservationController extends Controller
         \App\Jobs\ReleaseReservationJob::dispatch($reservation->id)
             ->delay($reservation->reserved_until);
 
-        return redirect()->route('reservations.index')->with('success', 'Seat reserved for 15 minutes.');
+        return redirect()->route('reservations.createBooking', $reservation)
+            ->with('success', 'Seat reserved for 15 minutes. Please complete your booking.');
     }
 
     public function destroy(Reservation $reservation)
@@ -62,7 +63,7 @@ class ReservationController extends Controller
         }
 
         $reservation->delete();
-        return redirect()->route('reservations.index')->with('success', 'Reservation cancelled.');
+        return redirect()->route('dashboard')->with('success', 'Reservation cancelled.');
     }
 
     public function createBooking(Reservation $reservation)
@@ -73,6 +74,7 @@ class ReservationController extends Controller
 
         return Inertia::render('bookings/Create', [
             'reservation' => $reservation,
+            'userEmail' => Auth::user()->email,
         ]);
     }
 }

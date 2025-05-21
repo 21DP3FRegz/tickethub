@@ -10,7 +10,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/shows/{show}/seats', [\App\Http\Controllers\SeatController::class, 'index'])->name('seats.index');
 
     // Reservations
-    Route::get('/reservations', [\App\Http\Controllers\ReservationController::class, 'index'])->name('reservations.index');
     Route::post('/reservations', [\App\Http\Controllers\ReservationController::class, 'store'])->name('reservations.store');
     Route::delete('/reservations/{reservation}', [\App\Http\Controllers\ReservationController::class, 'destroy'])->name('reservations.destroy');
     Route::get('/reservations/{reservation}/booking', [\App\Http\Controllers\ReservationController::class, 'createBooking'])->name('reservations.createBooking');

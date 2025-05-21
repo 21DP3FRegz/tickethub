@@ -37,13 +37,13 @@ class BookingController extends Controller
 
         // Check if the reservation belongs to the user
         if ($reservation->user_id !== Auth::id()) {
-            return redirect()->route('reservations.index')
+            return redirect()->route('dashboard')
                 ->with('error', 'This reservation does not belong to you.');
         }
 
         // Check if the reservation is still valid
         if ($reservation->reserved_until < now()) {
-            return redirect()->route('reservations.index')
+            return redirect()->route('dashboard')
                 ->with('error', 'This reservation has expired.');
         }
 

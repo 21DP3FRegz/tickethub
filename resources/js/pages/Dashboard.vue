@@ -50,9 +50,6 @@ defineProps({
                             </div>
                             Active Reservations
                         </h2>
-                        <Link :href="route('reservations.index')" class="text-sm text-primary hover:underline">
-                            View All
-                        </Link>
                     </div>
 
                     <div class="p-4">
