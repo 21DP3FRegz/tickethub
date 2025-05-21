@@ -47,11 +47,19 @@ class BookingController extends Controller
                 ->with('error', 'This reservation has expired.');
         }
 
+        // Get all related reservations for the same show by this user
+        $relatedReservations = Reservation::where('user_id', Auth::id())
+            ->where('show_id', $reservation->show_id)
+            ->where('reserved_until', '>=', now())
+            ->with(['seat'])
+            ->get();
+
         // Get the authenticated user's email
         $userEmail = Auth::user()->email;
 
         return Inertia::render('bookings/Create', [
             'reservation' => $reservation,
+            'relatedReservations' => $relatedReservations,
             'userEmail' => $userEmail,
         ]);
     }
@@ -59,7 +67,8 @@ class BookingController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'reservation_id' => 'required|exists:reservations,id',
+            'reservation_ids' => 'required|array',
+            'reservation_ids.*' => 'exists:reservations,id',
             'name' => 'required|string|max:255',
             'address' => 'required|string|max:255',
             'city' => 'required|string|max:255',
@@ -68,12 +77,17 @@ class BookingController extends Controller
             'email' => 'required|email|max:255',
         ]);
 
-        $reservation = Reservation::findOrFail($validated['reservation_id']);
+        // Get all reservations
+        $reservations = Reservation::whereIn('id', $validated['reservation_ids'])->get();
 
-        if ($reservation->user_id !== Auth::id() || $reservation->reserved_until < now()) {
-            return back()->withErrors(['reservation' => 'Invalid or expired reservation.']);
+        // Validate all reservations
+        foreach ($reservations as $reservation) {
+            if ($reservation->user_id !== Auth::id() || $reservation->reserved_until < now()) {
+                return back()->withErrors(['reservation' => 'One or more reservations are invalid or expired.']);
+            }
         }
 
+        // If all reservations are valid, create the booking
         $booking = Booking::create([
             'name' => $validated['name'],
             'address' => $validated['address'],
@@ -84,18 +98,22 @@ class BookingController extends Controller
             'user_id' => Auth::id(),
         ]);
 
-        Ticket::create([
-            'booking_id' => $booking->id,
-            'show_id' => $reservation->show_id,
-            'seat_id' => $reservation->seat_id,
-            'code' => strtoupper(Str::random(8)),
-            'name' => $validated['name'],
-        ]);
+        // Create tickets for all reservations
+        foreach ($reservations as $reservation) {
+            Ticket::create([
+                'booking_id' => $booking->id,
+                'show_id' => $reservation->show_id,
+                'seat_id' => $reservation->seat_id,
+                'code' => strtoupper(Str::random(8)),
+                'name' => $validated['name'],
+            ]);
 
-        $reservation->delete();
+            // Delete the reservation after creating the ticket
+            $reservation->delete();
+        }
 
         return redirect()->route('bookings.index')
-            ->with('success', 'Booking confirmed!');
+            ->with('success', 'Booking confirmed for ' . count($reservations) . ' seat(s)!');
     }
 
     public function show(Booking $booking)

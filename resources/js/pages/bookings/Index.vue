@@ -2,7 +2,7 @@
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 import { Button } from '@/Components/ui/button';
-import { CalendarDays, MapPin, Ticket, User, Clock, AlertCircle, QrCode } from 'lucide-vue-next';
+import { CalendarDays, MapPin, Ticket, User, Clock, AlertCircle, QrCode, ArrowRight } from 'lucide-vue-next';
 
 const props = defineProps<{
     bookings: Array<{
@@ -18,16 +18,6 @@ const props = defineProps<{
     }>;
 }>();
 
-const form = useForm({});
-
-const cancelBooking = (bookingId: number) => {
-    if (confirm('Are you sure you want to cancel this booking? This action cannot be undone.')) {
-        router.delete(route('bookings.destroy', bookingId), {
-            onSuccess: () => form.reset(),
-        });
-    }
-};
-
 const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return {
@@ -37,6 +27,11 @@ const formatDate = (dateString: string) => {
         time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         full: date.toLocaleString()
     };
+};
+
+// Navigate to specific ticket details
+const viewTicketDetails = (bookingId: number, ticketId: number) => {
+    router.visit(`/bookings/${bookingId}?ticket=${ticketId}`);
 };
 </script>
 
@@ -51,80 +46,52 @@ const formatDate = (dateString: string) => {
 
         <!-- Main Content -->
         <div class="p-4">
-            <div v-if="bookings.length" class="space-y-8">
+            <div v-if="bookings.length" class="space-y-6">
                 <div v-for="booking in bookings" :key="booking.id" class="bg-card rounded-xl shadow-sm">
                     <!-- Booking Header -->
-                    <div class="p-4 border-b border-border flex justify-between items-center">
+                    <div class="p-4 border-b border-border">
                         <h2 class="text-lg font-medium flex items-center">
                             <User class="h-5 w-5 mr-2 text-primary" />
                             Booking for {{ booking.name }}
                         </h2>
-                        <Button
-                            @click="cancelBooking(booking.id)"
-                            variant="outline"
-                            size="sm"
-                            class="border-destructive text-destructive hover:bg-destructive/10"
-                            :disabled="form.processing"
-                        >
-                            Cancel Booking
-                        </Button>
                     </div>
 
                     <!-- Tickets -->
                     <div class="p-4">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                             <div
                                 v-for="ticket in booking.tickets"
                                 :key="ticket.id"
-                                class="bg-muted/30 rounded-lg overflow-hidden border border-border hover:border-primary/30 transition-colors"
+                                @click="viewTicketDetails(booking.id, ticket.id)"
+                                class="bg-muted/30 rounded-lg overflow-hidden border border-border p-3 cursor-pointer hover:border-primary/50 hover:shadow-sm transition-all"
                             >
                                 <!-- Event Header -->
-                                <div class="bg-primary/10 p-3 border-b border-border">
-                                    <div class="font-medium truncate">{{ ticket.show.concert.artist }}</div>
-                                </div>
+                                <div class="font-medium truncate mb-2">{{ ticket.show.concert.artist }}</div>
 
                                 <!-- Ticket Details -->
-                                <div class="p-4">
+                                <div class="space-y-2 text-sm">
                                     <!-- Date & Time -->
-                                    <div class="mb-4">
-                                        <div class="flex items-center text-sm text-muted-foreground mb-1">
-                                            <CalendarDays class="h-4 w-4 mr-1" />
-                                            <span>{{ formatDate(ticket.show.start).month }} {{ formatDate(ticket.show.start).day }}, {{ formatDate(ticket.show.start).year }}</span>
-                                        </div>
-                                        <div class="flex items-center text-sm text-muted-foreground">
-                                            <Clock class="h-4 w-4 mr-1" />
-                                            <span>{{ formatDate(ticket.show.start).time }}</span>
-                                        </div>
+                                    <div class="flex items-center text-muted-foreground">
+                                        <CalendarDays class="h-4 w-4 mr-1" />
+                                        <span>{{ formatDate(ticket.show.start).month }} {{ formatDate(ticket.show.start).day }}</span>
+                                    </div>
+                                    <div class="flex items-center text-muted-foreground">
+                                        <Clock class="h-4 w-4 mr-1" />
+                                        <span>{{ formatDate(ticket.show.start).time }}</span>
                                     </div>
 
                                     <!-- Seat -->
-                                    <div class="mb-4 pb-4 border-b border-border">
-                                        <div class="flex items-center text-sm">
-                                            <MapPin class="h-4 w-4 mr-1 text-primary" />
-                                            <span>Seat: {{ ticket.seat.seat_number }}</span>
-                                        </div>
+                                    <div class="flex items-center">
+                                        <MapPin class="h-4 w-4 mr-1 text-primary" />
+                                        <span>Seat: {{ ticket.seat.seat_number }}</span>
                                     </div>
 
-                                    <!-- Ticket Code -->
-                                    <div>
-                                        <div class="flex items-center mb-2">
-                                            <QrCode class="h-4 w-4 mr-1 text-primary" />
-                                            <span class="text-sm font-medium">Ticket Code</span>
-                                        </div>
-                                        <div class="bg-secondary/50 p-3 rounded-md font-mono text-center select-all">
-                                            {{ ticket.code }}
-                                        </div>
-                                    </div>
-
-                                    <!-- View Details Link -->
-                                    <div class="mt-4 text-center">
-                                        <Link
-                                            :href="`/bookings/${booking.id}`"
-                                            class="text-primary hover:underline text-sm inline-flex items-center"
-                                        >
-                                            <Ticket class="h-4 w-4 mr-1" />
-                                            View Ticket Details
-                                        </Link>
+                                    <!-- View Details Indicator -->
+                                    <div class="flex justify-end text-xs text-primary mt-2">
+                                        <span class="flex items-center">
+                                            View Details
+                                            <ArrowRight class="h-3 w-3 ml-1" />
+                                        </span>
                                     </div>
                                 </div>
                             </div>

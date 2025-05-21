@@ -29,31 +29,47 @@ class ReservationController extends Controller
     {
         $request->validate([
             'show_id' => 'required|exists:shows,id',
-            'seat_id' => 'required|exists:seats,id',
+            'seat_ids' => 'required|array|min:1',
+            'seat_ids.*' => 'exists:seats,id',
         ]);
 
         $show = Show::findOrFail($request->show_id);
-        $seat = Seat::findOrFail($request->seat_id);
+        $seatIds = $request->seat_ids;
+        $seats = Seat::whereIn('id', $seatIds)->get();
 
-        // Check if seat is available
-        if ($seat->reservation || $seat->ticket) {
-            return back()->withErrors(['seat' => 'This seat is already reserved or booked.']);
+        // Check if all seats are available
+        $unavailableSeats = $seats->filter(function ($seat) {
+            return $seat->reservation || $seat->ticket;
+        });
+
+        if ($unavailableSeats->count() > 0) {
+            return back()->withErrors(['seat' => 'One or more selected seats are already reserved or booked.']);
         }
 
-        // Create reservation with 15-minute duration
-        $reservation = Reservation::create([
-            'show_id' => $show->id,
-            'seat_id' => $seat->id,
-            'reservation_token' => Str::random(32),
-            'reserved_until' => now()->addMinutes(15),
-            'user_id' => Auth::id(),
-        ]);
+        // Create reservations with 15-minute duration
+        $reservations = [];
+        foreach ($seats as $seat) {
+            $reservation = Reservation::create([
+                'show_id' => $show->id,
+                'seat_id' => $seat->id,
+                'reservation_token' => Str::random(32),
+                'reserved_until' => now()->addMinutes(15),
+                'user_id' => Auth::id(),
+            ]);
 
-        \App\Jobs\ReleaseReservationJob::dispatch($reservation->id)
-            ->delay($reservation->reserved_until);
+            \App\Jobs\ReleaseReservationJob::dispatch($reservation->id)
+                ->delay($reservation->reserved_until);
 
-        return redirect()->route('reservations.createBooking', $reservation)
-            ->with('success', 'Seat reserved for 15 minutes. Please complete your booking.');
+            $reservations[] = $reservation;
+        }
+
+        // Redirect to booking page with the first reservation
+        // The booking process will need to be updated to handle multiple reservations
+        $firstReservation = $reservations[0];
+
+        return redirect()->route('reservations.createBooking', $firstReservation)
+            ->with('success', count($reservations) . ' seat(s) reserved for 15 minutes. Please complete your booking.')
+            ->with('reservation_ids', collect($reservations)->pluck('id')->toArray());
     }
 
     public function destroy(Reservation $reservation)
@@ -72,8 +88,16 @@ class ReservationController extends Controller
 
         $reservation->load(['show.concert', 'seat']);
 
+        // Get all related reservations for the same show by this user
+        $relatedReservations = Reservation::where('user_id', Auth::id())
+            ->where('show_id', $reservation->show_id)
+            ->where('reserved_until', '>=', now())
+            ->with(['seat'])
+            ->get();
+
         return Inertia::render('bookings/Create', [
             'reservation' => $reservation,
+            'relatedReservations' => $relatedReservations,
             'userEmail' => Auth::user()->email,
         ]);
     }

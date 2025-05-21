@@ -3,8 +3,9 @@ import { Head, Link, useForm, router, usePage } from '@inertiajs/vue3';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/Components/ui/dialog';
+import SeatStatusIndicator from '@/components/SeatStatusIndicator.vue';
 import { ref, onMounted, computed } from 'vue';
-import { CalendarDays, MapPin, Music, Clock, Ticket, Users, Calendar } from 'lucide-vue-next';
+import { CalendarDays, MapPin, Music, Clock, Ticket, X, Calendar } from 'lucide-vue-next';
 
 const props = defineProps<{
     concert: {
@@ -34,10 +35,10 @@ const props = defineProps<{
 const selectedShow = ref<number | null>(null);
 const form = useForm<{
     show_id: number | null;
-    seat_id: number | null;
+    seat_ids: number[];
 }>({
     show_id: null,
-    seat_id: null,
+    seat_ids: [],
 });
 const error = ref('');
 
@@ -56,29 +57,52 @@ const openSeatMap = (showId: number) => {
     selectedShow.value = showId;
     // Reset selection when opening a new seat map
     form.show_id = showId;
-    form.seat_id = null;
+    form.seat_ids = [];
+    error.value = '';
 };
 
-const selectSeat = (showId: number, seatId: number) => {
-    console.log('Selecting seat:', { showId, seatId });
+const toggleSeatSelection = (showId: number, seatId: number) => {
+    console.log('Toggling seat selection:', { showId, seatId });
     form.show_id = showId;
-    form.seat_id = seatId;
-    error.value = '';
+
+    // If seat is already selected, remove it
+    const seatIndex = form.seat_ids.indexOf(seatId);
+    if (seatIndex !== -1) {
+        form.seat_ids.splice(seatIndex, 1);
+    } else {
+        // Add the seat to selection
+        form.seat_ids.push(seatId);
+    }
+
     console.log('Form after selection:', form);
 };
 
-const reserveSeat = () => {
-    console.log('Attempting to reserve seat with form data:', form);
+const isSeatSelected = (seatId: number) => {
+    return form.seat_ids.includes(seatId);
+};
+
+const reserveSeats = () => {
+    if (form.seat_ids.length === 0) {
+        error.value = 'Please select at least one seat.';
+        return;
+    }
+
+    console.log('Attempting to reserve seats with form data:', form);
     form.post(route('reservations.store'), {
         onError: (errors) => {
             console.error('Reservation error:', errors);
-            error.value = errors.seat || 'An error occurred.';
+            error.value = errors.seat || errors.seat_ids || 'An error occurred.';
         },
         onSuccess: () => {
             console.log('Reservation successful!');
             selectedShow.value = null; // Close modal
         },
     });
+};
+
+// Clear selected seats
+const clearSelection = () => {
+    form.seat_ids = [];
 };
 
 const formatDate = (dateString: string) => {
@@ -109,11 +133,70 @@ const getSortedRows = (show: any) => {
     return [...show.rows].sort((a, b) => a.order - b.order);
 };
 
-// Get max seats in any row to determine grid width
-const getMaxSeatsInRow = (show: any, rowId: number) => {
-    if (!show || !show.seats) return 0;
-    const seatsInRow = show.seats.filter(seat => seat.row_id === rowId);
-    return seatsInRow.length;
+// Check if a seat is available (not reserved and not ticketed)
+const isSeatAvailable = (seat: any) => {
+    return !seat.reservation && !seat.ticket;
+};
+
+// Sort seats numerically by seat number
+const getSortedSeats = (show: any, rowId: number) => {
+    if (!show || !show.seats) return [];
+
+    return show.seats
+        .filter(seat => seat.row_id === rowId)
+        .sort((a, b) => {
+            // Convert seat numbers to integers for proper numeric sorting
+            const seatNumA = parseInt(a.seat_number);
+            const seatNumB = parseInt(b.seat_number);
+
+            // If both are valid numbers, sort numerically
+            if (!isNaN(seatNumA) && !isNaN(seatNumB)) {
+                return seatNumA - seatNumB;
+            }
+
+            // Fallback to string comparison if not valid numbers
+            return a.seat_number.localeCompare(b.seat_number);
+        });
+};
+
+// Get current show
+const currentShow = computed(() => {
+    if (!selectedShow.value) return null;
+    return props.concert.shows.find(show => show.id === selectedShow.value);
+});
+
+// Get selected seats information for display
+const selectedSeats = computed(() => {
+    if (!currentShow.value) return [];
+
+    return form.seat_ids.map(seatId => {
+        const seat = currentShow.value?.seats.find(s => s.id === seatId);
+        return {
+            id: seatId,
+            number: seat?.seat_number || '',
+            rowId: seat?.row_id
+        };
+    }).sort((a, b) => {
+        // First sort by row
+        if (a.rowId !== b.rowId) {
+            return a.rowId - b.rowId;
+        }
+
+        // Then sort by seat number
+        const numA = parseInt(a.number);
+        const numB = parseInt(b.number);
+        if (!isNaN(numA) && !isNaN(numB)) {
+            return numA - numB;
+        }
+        return a.number.localeCompare(b.number);
+    });
+});
+
+// Get row name by ID
+const getRowName = (rowId: number) => {
+    if (!currentShow.value) return '';
+    const row = currentShow.value.rows.find(r => r.id === rowId);
+    return row ? row.name : '';
 };
 </script>
 
@@ -233,23 +316,47 @@ const getMaxSeatsInRow = (show: any, rowId: number) => {
                                                             <!-- Seats in Row -->
                                                             <div class="flex gap-1">
                                                                 <button
-                                                                    v-for="seat in show.seats.filter(s => s.row_id === row.id)"
+                                                                    v-for="seat in getSortedSeats(show, row.id)"
                                                                     :key="seat.id"
-                                                                    :disabled="seat.reservation || seat.ticket"
-                                                                    :class="[
-                                                                        'w-7 h-7 flex items-center justify-center rounded text-xs',
-                                                                        seat.reservation || seat.ticket
-                                                                            ? 'bg-muted-foreground/30 cursor-not-allowed'
-                                                                            : 'bg-primary hover:bg-primary/90 text-primary-foreground',
-                                                                        form.seat_id === seat.id ? 'ring-2 ring-primary ring-offset-1' : '',
-                                                                    ]"
-                                                                    @click="selectSeat(show.id, seat.id)"
+                                                                    :disabled="!isSeatAvailable(seat)"
+                                                                    @click="isSeatAvailable(seat) && toggleSeatSelection(show.id, seat.id)"
                                                                 >
-                                                                    {{ seat.seat_number }}
+                                                                    <SeatStatusIndicator
+                                                                        :seat="seat"
+                                                                        :isSelected="isSeatSelected(seat.id)"
+                                                                    />
                                                                 </button>
                                                             </div>
                                                         </div>
                                                     </div>
+                                                </div>
+
+                                                <!-- Selected Seats Display with Clear Button -->
+                                                <div v-if="form.seat_ids.length > 0" class="flex items-center justify-between mb-4">
+                                                    <div class="flex-1">
+                                                        <div class="flex flex-wrap gap-2">
+                                                            <div
+                                                                v-for="seat in selectedSeats"
+                                                                :key="seat.id"
+                                                                class="px-2 py-1 bg-primary/20 rounded text-xs flex items-center"
+                                                            >
+                                                                <span>{{ getRowName(seat.rowId) }}{{ seat.number }}</span>
+                                                                <button
+                                                                    @click="toggleSeatSelection(show.id, seat.id)"
+                                                                    class="ml-1 text-primary/70 hover:text-primary"
+                                                                >
+                                                                    <X class="h-3 w-3" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        @click="clearSelection"
+                                                        class="text-sm text-muted-foreground hover:text-primary flex items-center ml-2"
+                                                    >
+                                                        <X class="h-3 w-3 mr-1" />
+                                                        <span>Clear all</span>
+                                                    </button>
                                                 </div>
 
                                                 <!-- Legend -->
@@ -264,26 +371,32 @@ const getMaxSeatsInRow = (show: any, rowId: number) => {
                                                             <span class="text-xs">Taken</span>
                                                         </div>
                                                         <div class="flex items-center">
-                                                            <div class="w-4 h-4 border-2 border-primary rounded mr-2"></div>
+                                                            <div class="w-4 h-4 bg-primary/70 ring-2 ring-primary rounded mr-2"></div>
                                                             <span class="text-xs">Selected</span>
                                                         </div>
                                                     </div>
                                                 </div>
+
+                                                <!-- Selection Summary & Action Area -->
+                                                <div class="mt-6 space-y-4">
+                                                    <!-- Error Message -->
+                                                    <div v-if="error" class="p-3 bg-destructive/10 border border-destructive/30 rounded-md text-destructive text-sm">
+                                                        {{ error }}
+                                                    </div>
+
+                                                    <!-- Reserve Button -->
+                                                    <Button
+                                                        @click="reserveSeats"
+                                                        class="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                                                        :disabled="form.processing || form.seat_ids.length === 0"
+                                                    >
+                                                        <Ticket class="h-4 w-4 mr-2" />
+                                                        {{ form.seat_ids.length === 0 ? 'Select Seats to Reserve' :
+                                                        form.seat_ids.length === 1 ? 'Reserve Selected Seat' :
+                                                            `Reserve ${form.seat_ids.length} Selected Seats` }}
+                                                    </Button>
+                                                </div>
                                             </template>
-
-                                            <div v-if="error" class="p-3 bg-destructive/10 border border-destructive/30 rounded-md text-destructive text-sm mt-4">
-                                                {{ error }}
-                                            </div>
-
-                                            <Button
-                                                v-if="form.seat_id"
-                                                @click="reserveSeat"
-                                                class="mt-4 w-full bg-primary text-primary-foreground hover:bg-primary/90"
-                                                :disabled="form.processing"
-                                            >
-                                                <Ticket class="h-4 w-4 mr-2" />
-                                                Reserve Selected Seat
-                                            </Button>
                                         </div>
                                     </DialogContent>
                                 </Dialog>

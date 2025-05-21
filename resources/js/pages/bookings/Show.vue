@@ -1,9 +1,23 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, useForm, router, usePage } from '@inertiajs/vue3';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 import { Button } from '@/Components/ui/button';
-import { CalendarDays, MapPin, Ticket, User, Clock, CreditCard, Home, Printer, Share2, QrCode, ArrowLeft } from 'lucide-vue-next';
-import { ref } from 'vue';
+import {
+    CalendarDays, MapPin, Ticket, User, Clock, CreditCard,
+    Home, Printer, Share2, QrCode, ArrowLeft, AlertCircle
+} from 'lucide-vue-next';
+import { ref, onMounted, watch } from 'vue';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/Components/ui/alert-dialog";
 
 const props = defineProps<{
     booking: {
@@ -38,6 +52,18 @@ const props = defineProps<{
         }>;
     };
 }>();
+
+const page = usePage();
+const form = useForm({});
+
+const cancelBooking = () => {
+    router.delete(route('bookings.destroy', props.booking.id), {
+        onSuccess: () => {
+            form.reset();
+            router.visit('/bookings');
+        },
+    });
+};
 
 // Format date for display
 const formatDate = (dateString) => {
@@ -75,16 +101,54 @@ const shareTicket = async (ticket) => {
     }
 };
 
+// Get ticket ID from URL query parameter
+const getTicketIdFromUrl = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const ticketParam = urlParams.get('ticket');
+    return ticketParam ? parseInt(ticketParam, 10) : null;
+};
+
 // Active ticket for detailed view
-const activeTicketId = ref(props.booking.tickets.length > 0 ? props.booking.tickets[0].id : null);
+const activeTicketId = ref(null);
+
+// Initialize the active ticket ID
+const initializeActiveTicket = () => {
+    const urlTicketId = getTicketIdFromUrl();
+
+    // If we have a ticket ID in the URL and it exists in our booking tickets
+    if (urlTicketId && props.booking.tickets.some(ticket => ticket.id === urlTicketId)) {
+        activeTicketId.value = urlTicketId;
+    } else {
+        // Default to first ticket if no valid ticket ID in URL
+        activeTicketId.value = props.booking.tickets.length > 0 ? props.booking.tickets[0].id : null;
+    }
+};
+
+// Set up watchers and initialization
+onMounted(() => {
+    initializeActiveTicket();
+
+    // Add popstate event listener to handle browser back/forward navigation
+    window.addEventListener('popstate', () => {
+        initializeActiveTicket();
+    });
+});
 
 const setActiveTicket = (ticketId) => {
     activeTicketId.value = ticketId;
+
+    // Update URL to reflect the selected ticket without full page reload
+    const url = new URL(window.location.href);
+    url.searchParams.set('ticket', ticketId.toString());
+    window.history.pushState({}, '', url.toString());
 };
 
 const getActiveTicket = () => {
     return props.booking.tickets.find(ticket => ticket.id === activeTicketId.value);
 };
+
+// Alert dialog state
+const isAlertOpen = ref(false);
 </script>
 
 <template>
@@ -97,6 +161,46 @@ const getActiveTicket = () => {
         <div class="mb-8 p-4">
             <h1 class="text-2xl font-bold mb-2">Booking Details</h1>
             <p class="text-muted-foreground">View and manage your booking information and tickets.</p>
+        </div>
+
+        <!-- Action Buttons - Repositioned to top of content -->
+        <div class="px-4 mb-6 flex justify-between items-center">
+            <Link href="/bookings" class="text-primary hover:underline flex items-center">
+                <ArrowLeft class="h-4 w-4 mr-1" />
+                Back to All Bookings
+            </Link>
+
+            <AlertDialog>
+                <AlertDialogTrigger as-child>
+                    <Button
+                        variant="outline"
+                        class="border-destructive text-destructive hover:bg-destructive/10"
+                        :disabled="form.processing"
+                    >
+                        Cancel Booking
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent class="sm:max-w-[425px]">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle class="flex items-center">
+                            <AlertCircle class="h-5 w-5 mr-2 text-destructive" />
+                            Cancel Booking
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to cancel this booking? This action cannot be undone and all tickets will be invalidated.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Keep Booking</AlertDialogCancel>
+                        <AlertDialogAction
+                            @click="cancelBooking"
+                            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Cancel Booking
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
 
         <div class="p-4">
@@ -291,14 +395,6 @@ const getActiveTicket = () => {
                         <p class="text-muted-foreground mb-4">Please select a ticket from the list to view details.</p>
                     </div>
                 </div>
-            </div>
-
-            <!-- Back Link -->
-            <div class="mt-6">
-                <Link href="/bookings" class="text-primary hover:underline flex items-center">
-                    <ArrowLeft class="h-4 w-4 mr-1" />
-                    Back to All Bookings
-                </Link>
             </div>
         </div>
     </AppSidebarLayout>

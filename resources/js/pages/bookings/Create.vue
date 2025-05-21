@@ -4,8 +4,8 @@ import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
-import { ref, onMounted, onBeforeUnmount } from 'vue';
-import { CalendarDays, MapPin, Clock, CreditCard, User, Home, MapPinned } from 'lucide-vue-next';
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
+import { CalendarDays, MapPin, Clock, CreditCard, User, Home, Ticket } from 'lucide-vue-next';
 
 const props = defineProps<{
     reservation: {
@@ -22,11 +22,17 @@ const props = defineProps<{
         };
         reserved_until: string;
     };
+    relatedReservations: Array<{
+        id: number;
+        seat: {
+            seat_number: string;
+        };
+    }>;
     userEmail: string;
 }>();
 
 const form = useForm({
-    reservation_id: props.reservation.id,
+    reservation_ids: computed(() => props.relatedReservations.map(r => r.id)),
     name: '',
     address: '',
     city: '',
@@ -109,9 +115,22 @@ onBeforeUnmount(() => {
                                 <CalendarDays class="h-4 w-4 mr-1" />
                                 <span>{{ formatDate(reservation.show.start) }}</span>
                             </div>
-                            <div class="flex items-center text-sm text-muted-foreground mt-1">
-                                <MapPin class="h-4 w-4 mr-1" />
-                                <span>Seat: {{ reservation.seat.seat_number }}</span>
+
+                            <!-- Multiple Seats Display -->
+                            <div class="mt-3">
+                                <div class="text-sm font-medium mb-1 flex items-center">
+                                    <Ticket class="h-4 w-4 mr-1 text-primary" />
+                                    <span>{{ relatedReservations.length }} Seat{{ relatedReservations.length > 1 ? 's' : '' }}:</span>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    <div
+                                        v-for="relatedReservation in relatedReservations"
+                                        :key="relatedReservation.id"
+                                        class="px-2 py-1 bg-primary/10 rounded-full text-xs text-primary"
+                                    >
+                                        {{ relatedReservation.seat.seat_number }}
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -240,7 +259,7 @@ onBeforeUnmount(() => {
                                 :disabled="form.processing"
                             >
                                 <CreditCard class="h-4 w-4 mr-2" />
-                                Complete Purchase
+                                Complete Purchase ({{ relatedReservations.length }} Seat{{ relatedReservations.length > 1 ? 's' : '' }})
                             </Button>
 
                             <div class="text-center mt-4">
