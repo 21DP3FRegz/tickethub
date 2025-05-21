@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 
-const concerts = [
-    { id: 1, artist: 'Artist 1', location: 'Concert Hall', date: '2025-06-01' },
-    { id: 2, artist: 'Artist 2', location: 'Theater', date: '2025-06-15' },
-];
+defineProps({
+    upcomingConcerts: Array,
+    popularLocations: Array,
+    stats: Object
+});
 </script>
 
 <template>
@@ -12,48 +13,142 @@ const concerts = [
         <link rel="preconnect" href="https://rsms.me/" />
         <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
     </Head>
-    <div class="flex min-h-screen flex-col items-center bg-[#FDFDFC] p-6 text-[#1b1b18] dark:bg-[#0a0a0a] lg:justify-center lg:p-8">
-        <header class="mb-6 w-full max-w-[335px] text-sm lg:max-w-4xl">
-            <nav class="flex items-center justify-end gap-4">
-                <Link v-if="$page.props.auth.user" :href="route('dashboard')" class="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]">
-                    Dashboard
-                </Link>
-                <template v-else>
-                    <Link :href="route('login')" class="inline-block rounded-sm border border-transparent px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#19140035] dark:text-[#EDEDEC] dark:hover:border-[#3E3E3A]">
-                        Log in
-                    </Link>
-                    <Link :href="route('register')" class="inline-block rounded-sm distance-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]">
-                        Register
-                    </Link>
-                </template>
+
+    <div class="min-h-screen bg-background text-foreground">
+        <!-- Header Navigation -->
+        <header class="container mx-auto px-4 py-6">
+            <nav class="flex items-center justify-between">
+                <div class="text-2xl font-bold text-primary">TicketHub</div>
+                <div class="flex items-center space-x-4">
+                    <template v-if="$page.props.auth.user">
+                        <Link :href="route('dashboard')" class="px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90">
+                            Dashboard
+                        </Link>
+                    </template>
+                    <template v-else>
+                        <Link :href="route('login')" class="px-4 py-2 rounded-md text-foreground hover:text-primary transition-colors">
+                            Log in
+                        </Link>
+                        <Link :href="route('register')" class="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90">
+                            Register
+                        </Link>
+                    </template>
+                </div>
             </nav>
         </header>
-        <div class="duration-750 starting:opacity-0 flex w-full items-center justify-center opacity-100 transition-opacity lg:grow">
-            <main class="flex w-full max-w-[335px] flex-col-reverse overflow-hidden rounded-lg lg:max-w-4xl lg:flex-row">
-                <div class="flex-1 rounded-bl-lg rounded-br-lg bg-white p-6 pb-12 text-[13px] leading-[20px] shadow-[inset_0px_0px_0px_1px_rgba(26,26,0,0.16)] dark:bg-[#161615] dark:text-[#EDEDEC] dark:shadow-[inset_0px_0px_0px_1px_#fffaed2d] lg:rounded-br-none lg:rounded-tl-lg lg:p-20">
-                    <h1 class="mb-1 font-medium">Upcoming Concerts</h1>
-                    <p class="mb-2 text-[#706f6c] dark:text-[#A1A09A]">
-                        Browse our upcoming concerts and reserve your seats today.
+
+        <!-- Hero Section -->
+        <section class="container mx-auto px-4 py-12">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <div class="space-y-6">
+                    <h1 class="text-4xl md:text-5xl font-bold text-foreground">
+                        Find your next <span class="text-primary">live experience</span>
+                    </h1>
+                    <p class="text-lg text-muted-foreground">
+                        Discover and book tickets for the best concerts and events in your area.
                     </p>
-                    <ul class="mb-4 flex flex-col lg:mb-6">
-                        <li v-for="concert in concerts" :key="concert.id" class="py-2">
-                            <Link :href="route('concerts.show', concert.id)" class="font-medium text-[#f53003] underline underline-offset-4 dark:text-[#FF4433]">
-                                {{ concert.artist }} - {{ concert.location }} ({{ concert.date }})
+                    <div class="flex flex-wrap gap-4">
+                        <Link href="/concerts" class="px-6 py-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90">
+                            Browse Events
+                        </Link>
+                        <Link href="/locations" class="px-6 py-3 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90">
+                            Explore Venues
+                        </Link>
+                    </div>
+                </div>
+                <div class="bg-card rounded-xl p-6 shadow-lg">
+                    <h2 class="text-2xl font-bold mb-6 text-card-foreground">Featured Event</h2>
+                    <div v-if="upcomingConcerts && upcomingConcerts.length > 0" class="space-y-4">
+                        <div class="bg-accent/10 rounded-lg p-6">
+                            <h3 class="text-xl font-bold text-accent">{{ upcomingConcerts[0].artist }}</h3>
+                            <p class="text-muted-foreground">{{ upcomingConcerts[0].location_name }}</p>
+                            <p class="text-sm text-muted-foreground mt-2">{{ upcomingConcerts[0].next_show_date }}</p>
+                            <Link :href="route('concerts.show', upcomingConcerts[0].id)" class="mt-4 inline-block w-full text-center rounded-md bg-accent text-accent-foreground px-5 py-2 hover:bg-accent/90">
+                                Get Tickets
                             </Link>
-                        </li>
-                    </ul>
-                    <a href="https://cloud.laravel.com" target="_blank" class="inline-block rounded-sm border border-black bg-[#1b1b18] px-5 py-1.5 text-sm leading-normal text-white hover:border-black hover:bg-black dark:border-[#eeeeec] dark:bg-[#eeeeec] dark:text-[#1C1C1A] dark:hover:border-white dark:hover:bg-white">
-                        Explore More
-                    </a>
+                        </div>
+                    </div>
                 </div>
-                <div class="relative -mb-px aspect-335/376 w-full shrink-0 overflow-hidden rounded-t-lg bg-[#fff2f2] dark:bg-[#1D0002] lg:-ml-px lg:mb-0 lg:aspect-auto lg:w-[438px] lg:rounded-r-lg lg:rounded-t-none">
-                    <!-- Keep existing SVG logo -->
-                    <svg class="duration-750 starting:translate-y-6 starting:opacity-0 w-full max-w-none translate-y-0 text-[#F53003] opacity-100 transition-all dark:text-[#F61500]" viewBox="0 0 438 104" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <!-- Existing SVG paths -->
-                    </svg>
-                    <div class="absolute inset-0 rounded-t-lg shadow-[inset_0px_0px_0px_1px_rgba(26,26,0,0.16)] dark:shadow-[inset_0px_0px_0px_1px_#fffaed2d] lg:overflow-hidden lg:rounded-r-lg lg:rounded-t-none" />
+            </div>
+        </section>
+
+        <!-- Upcoming Concerts Section -->
+        <section class="container mx-auto px-4 py-12">
+            <h2 class="text-2xl font-bold mb-8">Upcoming Concerts</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div v-for="concert in upcomingConcerts" :key="concert.id" class="bg-card rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+                    <div class="p-6">
+                        <h3 class="text-xl font-bold text-card-foreground">{{ concert.artist }}</h3>
+                        <p class="text-muted-foreground">{{ concert.location_name }}</p>
+                        <div class="flex justify-between items-center mt-4">
+                            <span class="text-sm text-muted-foreground">{{ concert.next_show_date }}</span>
+                            <Link :href="route('concerts.show', concert.id)" class="text-primary hover:text-primary/90">
+                                View Details
+                            </Link>
+                        </div>
+                    </div>
                 </div>
-            </main>
-        </div>
+            </div>
+            <div class="mt-8 text-center">
+                <Link href="/concerts" class="inline-block px-6 py-3 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90">
+                    View All Concerts
+                </Link>
+            </div>
+        </section>
+
+        <!-- Find Your Next Experience Section -->
+        <section class="container mx-auto px-4 py-12">
+            <h2 class="text-2xl font-bold mb-6">Find Your Next Experience</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                <div class="bg-card rounded-lg p-6 shadow-md">
+                    <h3 class="text-xl font-bold mb-4 text-primary">Browse by Category</h3>
+                    <p class="text-muted-foreground mb-4">Discover events that match your interests and preferences.</p>
+                    <div class="flex flex-wrap gap-3 mt-4">
+                        <Link href="/concerts" class="px-4 py-2 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/90">
+                            All Concerts
+                        </Link>
+                        <Link href="/locations" class="px-4 py-2 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/90">
+                            Venues
+                        </Link>
+                        <Link href="/artists" class="px-4 py-2 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/90">
+                            Artists
+                        </Link>
+                        <Link href="/calendar" class="px-4 py-2 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/90">
+                            Calendar
+                        </Link>
+                    </div>
+                </div>
+
+                <div class="bg-card rounded-lg p-6 shadow-md">
+                    <h3 class="text-xl font-bold mb-4 text-primary">Coming Soon</h3>
+                    <p class="text-muted-foreground mb-4">Don't miss out on these highly anticipated events.</p>
+                    <div v-if="upcomingConcerts && upcomingConcerts.length > 1" class="space-y-3">
+                        <div v-for="(concert, index) in upcomingConcerts.slice(1, 4)" :key="concert.id" class="flex justify-between items-center border-b border-border pb-2 last:border-0">
+                            <div>
+                                <p class="font-medium">{{ concert.artist }}</p>
+                                <p class="text-sm text-muted-foreground">{{ concert.next_show_date }}</p>
+                            </div>
+                            <Link :href="route('concerts.show', concert.id)" class="text-primary hover:underline">
+                                Details
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="bg-card border-t border-border py-8">
+            <div class="container mx-auto px-4">
+                <div class="flex flex-col items-center justify-center text-center">
+                    <h3 class="text-lg font-bold mb-2">TicketHub</h3>
+                    <p class="text-muted-foreground mb-4">Your gateway to amazing live performances</p>
+                    <div class="mt-4 pt-4 border-t border-border text-muted-foreground w-full max-w-md">
+                        <p>&copy; {{ new Date().getFullYear() }} TicketHub. All rights reserved.</p>
+                    </div>
+                </div>
+            </div>
+        </footer>
     </div>
 </template>

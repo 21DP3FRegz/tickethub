@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
+import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/Components/ui/dialog';
 import { ref, onMounted } from 'vue';
@@ -80,7 +80,7 @@ const reserveSeat = () => {
 
 <template>
     <Head :title="concert.artist" />
-    <AppHeaderLayout>
+    <AppSidebarLayout :breadcrumbs="[{ title: 'Concerts', href: '/concerts' }, { title: concert.artist }]">
         <div class="p-6 max-w-4xl mx-auto">
             <h1 class="text-2xl font-bold mb-4">{{ concert.artist }}</h1>
             <p class="mb-4">Location: {{ concert.location.name }}</p>
@@ -90,7 +90,9 @@ const reserveSeat = () => {
             </div>
             <div v-else class="grid gap-6">
                 <div v-for="show in concert.shows" :key="show.id" class="border p-4 rounded-lg">
-                    <p class="font-medium">{{ new Date(show.start).toLocaleString() }} - {{ new Date(show.end).toLocaleString() }}</p>
+                    <p class="font-medium">
+                        {{ new Date(show.start).toLocaleString() }} - {{ new Date(show.end).toLocaleString() }}
+                    </p>
                     <Dialog>
                         <DialogTrigger as-child>
                             <Button @click="openSeatMap(show.id)" class="mt-2 bg-[#f53003] text-white">
@@ -114,10 +116,12 @@ const reserveSeat = () => {
                                                 :key="seat.id"
                                                 :disabled="seat.reservation || seat.ticket"
                                                 :class="[
-                            'p-2 rounded text-center text-sm',
-                            seat.reservation || seat.ticket ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600 text-white',
-                            form.seat_id === seat.id ? 'ring-2 ring-[#f53003]' : '',
-                          ]"
+                                                    'p-2 rounded text-center text-sm',
+                                                    seat.reservation || seat.ticket
+                                                        ? 'bg-gray-300 cursor-not-allowed'
+                                                        : 'bg-green-500 hover:bg-green-600 text-white',
+                                                    form.seat_id === seat.id ? 'ring-2 ring-[#f53003]' : '',
+                                                ]"
                                                 @click="selectSeat(show.id, seat.id)"
                                             >
                                                 {{ seat.seat_number }}
@@ -143,5 +147,5 @@ const reserveSeat = () => {
                 Back to Concerts
             </Link>
         </div>
-    </AppHeaderLayout>
+    </AppSidebarLayout>
 </template>

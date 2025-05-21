@@ -2,9 +2,10 @@
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Services\ConcertService;
 
-Route::get('/', function () {
-    return Inertia::render('Welcome');
+Route::get('/', function (ConcertService $concertService) {
+    return Inertia::render('Welcome', $concertService->getHomePageData());
 })->name('home');
 
 Route::get('dashboard', function () {

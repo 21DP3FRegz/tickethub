@@ -2,14 +2,13 @@
 
 use Illuminate\Support\Facades\Route;
 
-// Public Event Routes
-Route::get('/concerts', [\App\Http\Controllers\ConcertController::class, 'index'])->name('concerts.index');
-Route::get('/concerts/{concert}', [\App\Http\Controllers\ConcertController::class, 'show'])->name('concerts.show');
-
-Route::get('/shows/{show}/seats', [\App\Http\Controllers\SeatController::class, 'index'])->name('seats.index');
-
 // Authenticated Event Routes
 Route::middleware('auth')->group(function () {
+    Route::get('/concerts', [\App\Http\Controllers\ConcertController::class, 'index'])->name('concerts.index');
+    Route::get('/concerts/{concert}', [\App\Http\Controllers\ConcertController::class, 'show'])->name('concerts.show');
+
+    Route::get('/shows/{show}/seats', [\App\Http\Controllers\SeatController::class, 'index'])->name('seats.index');
+
     // Reservations
     Route::get('/reservations', [\App\Http\Controllers\ReservationController::class, 'index'])->name('reservations.index');
     Route::post('/reservations', [\App\Http\Controllers\ReservationController::class, 'store'])->name('reservations.store');
