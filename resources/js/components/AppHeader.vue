@@ -17,8 +17,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import UserMenuContent from '@/components/UserMenuContent.vue';
 import { getInitials } from '@/composables/useInitials';
 import type { BreadcrumbItem, NavItem } from '@/types';
-import { Link, usePage } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid, Menu, Search } from 'lucide-vue-next';
+import { usePage } from '@inertiajs/vue3';
+import { LayoutGrid, Music, Ticket, ShoppingCart, Search, Menu } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 interface Props {
@@ -41,23 +41,28 @@ const activeItemStyles = computed(
 const mainNavItems: NavItem[] = [
     {
         title: 'Dashboard',
-        href: '/dashboard',
+        href: route('dashboard'),
         icon: LayoutGrid,
+    },
+    {
+        title: 'Concerts',
+        href: route('concerts.index'),
+        icon: Music,
+    },
+    {
+        title: 'Reservations',
+        href: route('reservations.index'),
+        icon: Ticket,
+    },
+    {
+        title: 'Bookings',
+        href: route('bookings.index'),
+        icon: ShoppingCart,
     },
 ];
 
-const rightNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/vue-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#vue',
-        icon: BookOpen,
-    },
-];
+// Empty right nav items array (to be filled later)
+const rightNavItems: NavItem[] = [];
 </script>
 
 <template>

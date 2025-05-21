@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import AppHeaderLayout from '@/layouts/app/AppHeaderLayout.vue';
+import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 
 defineProps<{
     concerts: Array<{
@@ -15,15 +15,17 @@ defineProps<{
 
 <template>
     <Head title="Concerts" />
-    <AppHeaderLayout>
+    <AppSidebarLayout :breadcrumbs="[{ title: 'Concerts', href: '/concerts' }]">
         <div class="p-6">
             <h1 class="text-2xl font-bold mb-4">Upcoming Concerts</h1>
+
             <!-- Filter Form -->
             <form class="mb-6">
                 <input v-model="filters.location" placeholder="Filter by location" class="border p-2 mr-2" />
                 <input v-model="filters.date" type="date" class="border p-2 mr-2" />
                 <button type="submit" class="bg-[#f53003] text-white p-2">Apply</button>
             </form>
+
             <!-- Concert List -->
             <ul class="grid gap-4">
                 <li v-for="concert in concerts" :key="concert.id" class="border p-4 rounded">
@@ -34,5 +36,5 @@ defineProps<{
                 </li>
             </ul>
         </div>
-    </AppHeaderLayout>
+    </AppSidebarLayout>
 </template>
