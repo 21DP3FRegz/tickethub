@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { Head, Link, useForm, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/Components/ui/dialog';
 import SeatStatusIndicator from '@/components/SeatStatusIndicator.vue';
 import { ref, onMounted, computed } from 'vue';
-import { CalendarDays, MapPin, Music, Clock, Ticket, X, Calendar } from 'lucide-vue-next';
+import { CalendarDays, MapPin, Music, Clock, Ticket, X, Calendar, AlertCircle } from 'lucide-vue-next';
 
 const props = defineProps<{
     concert: {
@@ -22,11 +22,29 @@ const props = defineProps<{
                 row_id: number;
                 reservation: null | { id: number };
                 ticket: null | { id: number };
+                status?: string;
             }>;
             rows: Array<{
                 id: number;
                 name: string;
                 order: number;
+            }>;
+        }>;
+    };
+    userBookings?: {
+        concert_id: number;
+        concert_name: string;
+        shows: Array<{
+            show_id: number;
+            show_date: string;
+            booking_id: number;
+            booking_date: string;
+            seats: Array<{
+                id: number;
+                seat_number: string;
+                row_name: string;
+                ticket_id: number;
+                ticket_code: string;
             }>;
         }>;
     };
@@ -49,6 +67,10 @@ onMounted(() => {
         props.concert.shows.forEach(show => {
             console.log(`Show ID ${show.id} has ${show.seats?.length || 0} seats and ${show.rows?.length || 0} rows`);
         });
+    }
+
+    if (props.userBookings) {
+        console.log('User has bookings for this concert:', props.userBookings);
     }
 });
 
@@ -91,7 +113,7 @@ const reserveSeats = () => {
     form.post(route('reservations.store'), {
         onError: (errors) => {
             console.error('Reservation error:', errors);
-            error.value = errors.seat || errors.seat_ids || 'An error occurred.';
+            error.value = errors.seat || errors.seat_ids || errors.show || 'An error occurred.';
         },
         onSuccess: () => {
             console.log('Reservation successful!');
@@ -198,6 +220,19 @@ const getRowName = (rowId: number) => {
     const row = currentShow.value.rows.find(r => r.id === rowId);
     return row ? row.name : '';
 };
+
+// Check if user already has tickets for a show
+const userHasTicketsForShow = (showId: number) => {
+    if (!props.userBookings) return false;
+    return props.userBookings.shows.some(show => show.show_id === showId);
+};
+
+// Get user's booked seats for a show
+const getUserBookedSeatsForShow = (showId: number) => {
+    if (!props.userBookings) return [];
+    const show = props.userBookings.shows.find(show => show.show_id === showId);
+    return show ? show.seats : [];
+};
 </script>
 
 <template>
@@ -212,9 +247,41 @@ const getRowName = (rowId: number) => {
             </p>
         </div>
 
+        <!-- User's Bookings Section -->
+        <div v-if="userBookings" class="p-4 mb-6">
+            <div class="bg-secondary/30 border border-secondary rounded-xl p-4">
+                <h2 class="text-lg font-medium flex items-center text-secondary-foreground mb-3">
+                    <Ticket class="h-5 w-5 mr-2 text-accent" />
+                    Your Tickets for {{ concert.artist }}
+                </h2>
+
+                <div v-for="(show, index) in userBookings.shows" :key="index" class="mb-4 last:mb-0">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                        <div>
+                            <h3 class="font-medium text-foreground">{{ show.show_date }}</h3>
+                            <p class="text-sm text-muted-foreground">Booked on {{ show.booking_date }}</p>
+
+                            <div class="flex flex-wrap gap-1 mt-2">
+                                <span v-for="(seat, seatIndex) in show.seats" :key="seatIndex"
+                                      class="px-2 py-1 bg-secondary border border-secondary/50 rounded-full text-xs text-secondary-foreground">
+                                    {{ seat.row_name }}{{ seat.seat_number }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <Link :href="route('bookings.show', show.booking_id)"
+                              class="px-3 py-1 text-sm rounded-md bg-accent text-accent-foreground hover:bg-accent/90 transition-colors inline-flex items-center focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+                            <Ticket class="h-4 w-4 mr-1" />
+                            View Tickets
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Main Content -->
         <div class="p-4">
-            <div class="bg-card rounded-xl shadow-sm mb-6">
+            <div class="bg-card rounded-xl shadow-sm mb-6 border border-border">
                 <div class="p-4 border-b border-border flex justify-between items-center">
                     <h2 class="text-lg font-medium flex items-center">
                         <Music class="h-5 w-5 mr-2 text-primary" />
@@ -225,11 +292,11 @@ const getRowName = (rowId: number) => {
                 <div class="p-4">
                     <div v-if="!concert.shows || concert.shows.length === 0" class="py-8 text-center">
                         <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted mb-4">
-                            <CalendarDays class="h-6 w-6 text-muted-foreground" />
+                            <CalendarDays class="h-6 w-6 text-primary" />
                         </div>
                         <h3 class="text-lg font-medium mb-1">No Upcoming Shows</h3>
                         <p class="text-muted-foreground mb-4">There are no upcoming shows available for this concert.</p>
-                        <Link :href="route('concerts.index')" class="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90">
+                        <Link :href="route('concerts.index')" class="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
                             Browse Other Concerts
                         </Link>
                     </div>
@@ -269,12 +336,38 @@ const getRowName = (rowId: number) => {
                                     </div>
                                 </div>
 
+                                <!-- User's Booked Seats for this Show -->
+                                <div v-if="userHasTicketsForShow(show.id)" class="mb-4 p-2 bg-secondary/30 border border-secondary rounded-md">
+                                    <div class="flex items-center text-secondary-foreground mb-1">
+                                        <Ticket class="h-4 w-4 mr-1" />
+                                        <span class="font-medium text-sm">Your Booked Seats</span>
+                                    </div>
+                                    <div class="flex flex-wrap gap-1 mt-1">
+                                        <span v-for="(seat, seatIndex) in getUserBookedSeatsForShow(show.id)" :key="seatIndex"
+                                              class="px-2 py-0.5 bg-secondary border border-secondary/50 rounded-full text-xs text-secondary-foreground">
+                                            {{ seat.row_name }}{{ seat.seat_number }}
+                                        </span>
+                                    </div>
+                                </div>
+
                                 <!-- Action Button -->
-                                <Dialog>
+                                <div v-if="userHasTicketsForShow(show.id)" class="text-center">
+                                    <div class="p-3 bg-secondary/30 border border-secondary rounded-md mb-3">
+                                        <div class="flex items-center text-secondary-foreground">
+                                            <AlertCircle class="h-4 w-4 mr-1 flex-shrink-0" />
+                                            <span class="text-sm">You already have tickets for this show</span>
+                                        </div>
+                                    </div>
+                                    <Link :href="route('bookings.index')" class="w-full inline-block text-center px-4 py-2 bg-accent text-accent-foreground rounded-md hover:bg-accent/90 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+                                        <Ticket class="h-4 w-4 mr-1 inline-block" />
+                                        View Your Bookings
+                                    </Link>
+                                </div>
+                                <Dialog v-else>
                                     <DialogTrigger asChild>
                                         <Button
                                             @click="openSeatMap(show.id)"
-                                            class="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                                            class="w-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                                         >
                                             <Ticket class="h-4 w-4 mr-2" />
                                             Select Seats
@@ -318,8 +411,9 @@ const getRowName = (rowId: number) => {
                                                                 <button
                                                                     v-for="seat in getSortedSeats(show, row.id)"
                                                                     :key="seat.id"
-                                                                    :disabled="!isSeatAvailable(seat)"
-                                                                    @click="isSeatAvailable(seat) && toggleSeatSelection(show.id, seat.id)"
+                                                                    :disabled="!isSeatAvailable(seat) || seat.status === 'your-booking'"
+                                                                    @click="isSeatAvailable(seat) && seat.status !== 'your-booking' && toggleSeatSelection(show.id, seat.id)"
+                                                                    class="focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 disabled:opacity-100"
                                                                 >
                                                                     <SeatStatusIndicator
                                                                         :seat="seat"
@@ -343,7 +437,7 @@ const getRowName = (rowId: number) => {
                                                                 <span>{{ getRowName(seat.rowId) }}{{ seat.number }}</span>
                                                                 <button
                                                                     @click="toggleSeatSelection(show.id, seat.id)"
-                                                                    class="ml-1 text-primary/70 hover:text-primary"
+                                                                    class="ml-1 text-primary/70 hover:text-primary transition-colors"
                                                                 >
                                                                     <X class="h-3 w-3" />
                                                                 </button>
@@ -352,7 +446,7 @@ const getRowName = (rowId: number) => {
                                                     </div>
                                                     <button
                                                         @click="clearSelection"
-                                                        class="text-sm text-muted-foreground hover:text-primary flex items-center ml-2"
+                                                        class="text-sm text-muted-foreground hover:text-primary flex items-center ml-2 transition-colors"
                                                     >
                                                         <X class="h-3 w-3 mr-1" />
                                                         <span>Clear all</span>
@@ -361,7 +455,7 @@ const getRowName = (rowId: number) => {
 
                                                 <!-- Legend -->
                                                 <div class="mb-4 p-3 bg-muted rounded-md">
-                                                    <div class="flex justify-between">
+                                                    <div class="flex flex-wrap justify-between gap-2">
                                                         <div class="flex items-center">
                                                             <div class="w-4 h-4 bg-primary rounded mr-2"></div>
                                                             <span class="text-xs">Available</span>
@@ -371,8 +465,12 @@ const getRowName = (rowId: number) => {
                                                             <span class="text-xs">Booked</span>
                                                         </div>
                                                         <div class="flex items-center">
-                                                            <div class="w-4 h-4 bg-yellow-400/70 rounded mr-2"></div>
+                                                            <div class="w-4 h-4 bg-secondary rounded mr-2"></div>
                                                             <span class="text-xs">Reserved</span>
+                                                        </div>
+                                                        <div class="flex items-center">
+                                                            <div class="w-4 h-4 bg-accent rounded mr-2"></div>
+                                                            <span class="text-xs">Your Booking</span>
                                                         </div>
                                                         <div class="flex items-center">
                                                             <div class="w-4 h-4 bg-primary/70 ring-2 ring-primary rounded mr-2"></div>
@@ -391,7 +489,7 @@ const getRowName = (rowId: number) => {
                                                     <!-- Reserve Button -->
                                                     <Button
                                                         @click="reserveSeats"
-                                                        class="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                                                        class="w-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                                                         :disabled="form.processing || form.seat_ids.length === 0"
                                                     >
                                                         <Ticket class="h-4 w-4 mr-2" />
@@ -411,7 +509,7 @@ const getRowName = (rowId: number) => {
             </div>
 
             <div class="flex justify-between items-center">
-                <Link :href="route('concerts.index')" class="text-primary hover:underline flex items-center">
+                <Link :href="route('concerts.index')" class="text-primary hover:underline flex items-center transition-colors focus:outline-none focus:ring-2 focus:ring-ring rounded-md px-2 py-1">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="m15 18-6-6 6-6"/></svg>
                     Back to Concerts
                 </Link>

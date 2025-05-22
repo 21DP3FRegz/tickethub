@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Reservation;
 use App\Models\Seat;
 use App\Models\Show;
+use App\Models\Ticket;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -47,6 +48,19 @@ class ReservationController extends Controller
         $show = Show::findOrFail($request->show_id);
         $seatIds = $request->seat_ids;
         $seats = Seat::whereIn('id', $seatIds)->get();
+
+        // Check if user already has tickets for this show
+        if (Auth::check()) {
+            $existingTickets = Ticket::whereHas('booking', function ($query) {
+                $query->where('user_id', Auth::id());
+            })
+                ->where('show_id', $show->id)
+                ->count();
+
+            if ($existingTickets > 0) {
+                return back()->withErrors(['show' => 'You already have tickets for this show. You cannot purchase additional tickets for the same show.']);
+            }
+        }
 
         // Check if all seats are available
         $unavailableSeats = $seats->filter(function ($seat) {

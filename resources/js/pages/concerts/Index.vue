@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
-import { ref, watch } from 'vue';
-import { CalendarDays, MapPin, Music, Search, X, User } from 'lucide-vue-next';
+import { ref } from 'vue';
+import { CalendarDays, MapPin, Music, Search, X, User, Ticket } from 'lucide-vue-next';
 
 const props = defineProps<{
     concerts: Array<{
@@ -12,6 +12,7 @@ const props = defineProps<{
         shows: Array<{ start: string }>;
     }>;
     filters: { location?: string; date?: string; artist?: string };
+    userBookings?: Record<string, any>;
 }>();
 
 // Create reactive filter state
@@ -63,6 +64,22 @@ const handleKeyDown = (e: KeyboardEvent) => {
         applyFilters();
     }
 };
+
+// Check if user has bookings for a concert
+const hasBookingsForConcert = (concertId: number) => {
+    if (!props.userBookings) return false;
+    return Object.values(props.userBookings).some(
+        (booking: any) => booking.concert_id === concertId
+    );
+};
+
+// Get user bookings for a concert
+const getBookingsForConcert = (concertId: number) => {
+    if (!props.userBookings) return null;
+    return Object.values(props.userBookings).find(
+        (booking: any) => booking.concert_id === concertId
+    );
+};
 </script>
 
 <template>
@@ -80,9 +97,9 @@ const handleKeyDown = (e: KeyboardEvent) => {
             </div>
 
             <!-- Filter Form -->
-            <div class="bg-card rounded-lg p-4 mb-8 shadow-sm">
+            <div class="bg-card rounded-lg p-4 mb-8 shadow-sm border border-border">
                 <div class="flex items-center mb-4">
-                    <Search class="h-5 w-5 text-muted-foreground mr-2" />
+                    <Search class="h-5 w-5 text-primary mr-2" />
                     <h2 class="text-lg font-medium">Filter Concerts</h2>
                 </div>
 
@@ -97,8 +114,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
                                 id="artist"
                                 v-model="filterArtist"
                                 placeholder="Filter by artist"
-                                class="w-full pl-10 pr-3 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                                @keydown="handleKeyDown"
+                                class="w-full pl-10 pr-3 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary"
                             />
                         </div>
                     </div>
@@ -113,8 +129,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
                                 id="location"
                                 v-model="filterLocation"
                                 placeholder="Filter by location"
-                                class="w-full pl-10 pr-3 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                                @keydown="handleKeyDown"
+                                class="w-full pl-10 pr-3 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary"
                             />
                         </div>
                     </div>
@@ -129,8 +144,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
                                 id="date"
                                 v-model="filterDate"
                                 type="date"
-                                class="w-full pl-10 pr-3 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                                @keydown="handleKeyDown"
+                                class="w-full pl-10 pr-3 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary"
                             />
                         </div>
                     </div>
@@ -138,7 +152,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
                     <div class="flex gap-2">
                         <button
                             type="submit"
-                            class="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                            class="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-colors"
                         >
                             Apply Filters
                         </button>
@@ -146,7 +160,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
                         <button
                             type="button"
                             @click="clearFilters"
-                            class="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2"
+                            class="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-colors"
                         >
                             <X class="h-4 w-4" />
                         </button>
@@ -155,34 +169,34 @@ const handleKeyDown = (e: KeyboardEvent) => {
 
                 <!-- Active Filters -->
                 <div v-if="filters.location || filters.date || filters.artist" class="mt-4 flex flex-wrap gap-2">
-                    <div v-if="filters.artist" class="inline-flex items-center bg-secondary/50 text-secondary-foreground px-3 py-1 rounded-full text-sm">
+                    <div v-if="filters.artist" class="inline-flex items-center bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm">
                         <span class="mr-1">Artist:</span>
                         <span class="font-medium">{{ filters.artist }}</span>
                         <button
                             @click="() => { filterArtist = ''; applyFilters(); }"
-                            class="ml-2 text-secondary-foreground/70 hover:text-secondary-foreground"
+                            class="ml-2 text-secondary-foreground/70 hover:text-secondary-foreground transition-colors"
                         >
                             <X class="h-3 w-3" />
                         </button>
                     </div>
 
-                    <div v-if="filters.location" class="inline-flex items-center bg-secondary/50 text-secondary-foreground px-3 py-1 rounded-full text-sm">
+                    <div v-if="filters.location" class="inline-flex items-center bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm">
                         <span class="mr-1">Location:</span>
                         <span class="font-medium">{{ filters.location }}</span>
                         <button
                             @click="() => { filterLocation = ''; applyFilters(); }"
-                            class="ml-2 text-secondary-foreground/70 hover:text-secondary-foreground"
+                            class="ml-2 text-secondary-foreground/70 hover:text-secondary-foreground transition-colors"
                         >
                             <X class="h-3 w-3" />
                         </button>
                     </div>
 
-                    <div v-if="filters.date" class="inline-flex items-center bg-secondary/50 text-secondary-foreground px-3 py-1 rounded-full text-sm">
+                    <div v-if="filters.date" class="inline-flex items-center bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm">
                         <span class="mr-1">Date:</span>
                         <span class="font-medium">{{ filters.date }}</span>
                         <button
                             @click="() => { filterDate = ''; applyFilters(); }"
-                            class="ml-2 text-secondary-foreground/70 hover:text-secondary-foreground"
+                            class="ml-2 text-secondary-foreground/70 hover:text-secondary-foreground transition-colors"
                         >
                             <X class="h-3 w-3" />
                         </button>
@@ -211,11 +225,28 @@ const handleKeyDown = (e: KeyboardEvent) => {
                             </div>
                         </div>
 
+                        <!-- User's Bookings for this concert -->
+                        <div v-if="hasBookingsForConcert(concert.id)" class="mb-4 p-3 bg-secondary/50 border border-secondary rounded-md">
+                            <div class="flex items-center text-secondary-foreground mb-2">
+                                <Ticket class="h-4 w-4 mr-1" />
+                                <span class="font-medium text-sm">Your Booked Tickets</span>
+                            </div>
+                            <div v-for="(show, index) in getBookingsForConcert(concert.id).shows" :key="index" class="text-xs text-secondary-foreground mb-1">
+                                <div class="font-medium">{{ show.show_date }}</div>
+                                <div class="flex flex-wrap gap-1 mt-1">
+                                    <span v-for="(seat, seatIndex) in show.seats" :key="seatIndex"
+                                          class="px-2 py-0.5 bg-secondary border border-secondary/50 rounded-full">
+                                        {{ seat.row_name }}{{ seat.seat_number }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="space-y-2 mb-4">
                             <div v-if="concert.shows && concert.shows.length > 0" class="space-y-1">
                                 <p class="text-xs uppercase tracking-wider text-muted-foreground font-medium">Next Show</p>
                                 <div class="flex items-center text-sm">
-                                    <CalendarDays class="h-4 w-4 mr-1 text-muted-foreground" />
+                                    <CalendarDays class="h-4 w-4 mr-1 text-primary" />
                                     <span>{{ formatDate(concert.shows[0]?.start) }}</span>
                                 </div>
                                 <p v-if="concert.shows.length > 1" class="text-xs text-muted-foreground">
@@ -229,7 +260,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
 
                         <Link
                             :href="route('concerts.show', concert.id)"
-                            class="block w-full text-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                            class="block w-full text-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                         >
                             View Details
                         </Link>
@@ -238,9 +269,9 @@ const handleKeyDown = (e: KeyboardEvent) => {
             </div>
 
             <!-- Empty State -->
-            <div v-else class="bg-card rounded-lg p-8 text-center">
+            <div v-else class="bg-card rounded-lg p-8 text-center border border-border">
                 <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted mb-4">
-                    <Music class="h-6 w-6 text-muted-foreground" />
+                    <Music class="h-6 w-6 text-primary" />
                 </div>
                 <h3 class="text-lg font-medium mb-2">No Concerts Found</h3>
                 <p class="text-muted-foreground mb-6">
@@ -249,7 +280,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
                 <button
                     v-if="filters.location || filters.date || filters.artist"
                     @click="clearFilters"
-                    class="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                    class="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                 >
                     Clear Filters
                 </button>

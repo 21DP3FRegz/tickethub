@@ -6,9 +6,9 @@ const props = defineProps<{
         id: number;
         seat_number: string;
         row_id: number;
-        reservation: null | { id: number; reserved_until?: string };
+        reservation: null | { id: number };
         ticket: null | { id: number };
-        status?: string; // Add optional status property
+        status?: string;
     };
     isSelected: boolean;
 }>();
@@ -42,27 +42,48 @@ const seatStatus = computed(() => {
 
 const statusClasses = computed(() => {
     if (props.isSelected) {
-        return 'bg-primary/70 ring-2 ring-primary ring-offset-1 text-primary-foreground';
+        return 'bg-primary/80 ring-2 ring-primary ring-offset-1 text-primary-foreground';
     }
 
     switch (seatStatus.value) {
         case 'booked':
             return 'bg-muted-foreground/30 cursor-not-allowed';
+        case 'your-booking':
+            return 'bg-accent text-accent-foreground cursor-not-allowed ring-1 ring-accent/50';
         case 'reserved':
-            return 'bg-yellow-400/70 cursor-not-allowed text-black';
+            return 'bg-secondary text-secondary-foreground cursor-not-allowed';
+        case 'your-reservation':
+            return 'bg-secondary ring-1 ring-secondary-foreground cursor-not-allowed text-secondary-foreground';
         case 'available':
-            return 'bg-primary hover:bg-primary/90 text-primary-foreground';
+            return 'bg-primary hover:bg-primary/90 text-primary-foreground transition-colors';
         default:
             return '';
+    }
+});
+
+const statusTitle = computed(() => {
+    switch (seatStatus.value) {
+        case 'booked':
+            return 'Booked by someone else';
+        case 'your-booking':
+            return 'Your booked seat';
+        case 'reserved':
+            return 'Reserved by someone else';
+        case 'your-reservation':
+            return 'Your reserved seat';
+        case 'available':
+            return 'Available';
+        default:
+            return seatStatus.value;
     }
 });
 </script>
 
 <template>
     <div
-        class="w-7 h-7 flex items-center justify-center rounded text-xs"
+        class="w-7 h-7 flex items-center justify-center rounded text-xs font-medium shadow-sm"
         :class="statusClasses"
-        :title="seatStatus"
+        :title="statusTitle"
     >
         <slot>{{ seat.seat_number }}</slot>
     </div>

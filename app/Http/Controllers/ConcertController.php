@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Concert;
+use App\Models\Ticket;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class ConcertController extends Controller
@@ -34,9 +36,61 @@ class ConcertController extends Controller
 
         $concerts = $query->get();
 
+        // Get user's bookings for these concerts if user is logged in
+        $userBookings = [];
+        if (Auth::check()) {
+            // Get all shows for these concerts
+            $showIds = $concerts->flatMap(function ($concert) {
+                return $concert->shows->pluck('id');
+            })->toArray();
+
+            // Get user's tickets for these shows
+            $userTickets = Ticket::whereHas('booking', function ($query) {
+                $query->where('user_id', Auth::id());
+            })
+                ->whereIn('show_id', $showIds)
+                ->with(['show.concert', 'seat.row'])
+                ->get();
+
+            // Group tickets by concert
+            foreach ($userTickets as $ticket) {
+                $concertId = $ticket->show->concert->id;
+                if (!isset($userBookings[$concertId])) {
+                    $userBookings[$concertId] = [
+                        'concert_id' => $concertId,
+                        'concert_name' => $ticket->show->concert->artist,
+                        'shows' => []
+                    ];
+                }
+
+                $showId = $ticket->show->id;
+                if (!isset($userBookings[$concertId]['shows'][$showId])) {
+                    $userBookings[$concertId]['shows'][$showId] = [
+                        'show_id' => $showId,
+                        'show_date' => (new \DateTime($ticket->show->start))->format('M d, Y h:i A'),
+                        'seats' => []
+                    ];
+                }
+
+                $userBookings[$concertId]['shows'][$showId]['seats'][] = [
+                    'id' => $ticket->seat->id,
+                    'seat_number' => $ticket->seat->seat_number,
+                    'row_name' => $ticket->seat->row->name,
+                    'ticket_id' => $ticket->id,
+                    'ticket_code' => $ticket->code
+                ];
+            }
+
+            // Convert shows from associative to indexed arrays
+            foreach ($userBookings as &$booking) {
+                $booking['shows'] = array_values($booking['shows']);
+            }
+        }
+
         return Inertia::render('concerts/Index', [
             'concerts' => $concerts,
             'filters' => $request->only(['location', 'date', 'artist']),
+            'userBookings' => $userBookings
         ]);
     }
 
@@ -61,8 +115,56 @@ class ConcertController extends Controller
             });
         });
 
+        // Get user's bookings for this concert if user is logged in
+        $userBookings = null;
+        if (Auth::check()) {
+            $showIds = $concert->shows->pluck('id')->toArray();
+
+            // Get user's tickets for these shows
+            $userTickets = Ticket::whereHas('booking', function ($query) {
+                $query->where('user_id', Auth::id());
+            })
+                ->whereIn('show_id', $showIds)
+                ->with(['show', 'seat.row', 'booking'])
+                ->get();
+
+            if ($userTickets->count() > 0) {
+                $userBookings = [
+                    'concert_id' => $concert->id,
+                    'concert_name' => $concert->artist,
+                    'shows' => []
+                ];
+
+                // Group tickets by show
+                foreach ($userTickets as $ticket) {
+                    $showId = $ticket->show->id;
+                    if (!isset($userBookings['shows'][$showId])) {
+                        $userBookings['shows'][$showId] = [
+                            'show_id' => $showId,
+                            'show_date' => (new \DateTime($ticket->show->start))->format('M d, Y h:i A'),
+                            'booking_id' => $ticket->booking->id,
+                            'booking_date' => (new \DateTime($ticket->booking->created_at))->format('M d, Y'),
+                            'seats' => []
+                        ];
+                    }
+
+                    $userBookings['shows'][$showId]['seats'][] = [
+                        'id' => $ticket->seat->id,
+                        'seat_number' => $ticket->seat->seat_number,
+                        'row_name' => $ticket->seat->row->name,
+                        'ticket_id' => $ticket->id,
+                        'ticket_code' => $ticket->code
+                    ];
+                }
+
+                // Convert shows from associative to indexed arrays
+                $userBookings['shows'] = array_values($userBookings['shows']);
+            }
+        }
+
         return Inertia::render('concerts/Show', [
             'concert' => $concert,
+            'userBookings' => $userBookings
         ]);
     }
 
@@ -75,12 +177,20 @@ class ConcertController extends Controller
     private function determineSeatStatus($seat)
     {
         if ($seat->ticket) {
+            // Check if the ticket belongs to the current user
+            if (Auth::check() && $seat->ticket->booking && $seat->ticket->booking->user_id === Auth::id()) {
+                return 'your-booking';
+            }
             return 'booked';
         }
 
         if ($seat->reservation) {
             // Check if reservation is still valid
             if ($seat->reservation->reserved_until >= now()) {
+                // Check if the reservation belongs to the current user
+                if (Auth::check() && $seat->reservation->user_id === Auth::id()) {
+                    return 'your-reservation';
+                }
                 return 'reserved';
             }
         }
