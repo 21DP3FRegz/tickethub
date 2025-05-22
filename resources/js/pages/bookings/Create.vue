@@ -59,9 +59,19 @@ const countdownInterval = ref(null);
 const updateCountdown = () => {
     const now = new Date();
     const expiry = new Date(props.reservation.reserved_until);
+
+    // Debug logging
+    console.log('Countdown debug:', {
+        now: now.toISOString(),
+        expiry: props.reservation.reserved_until,
+        expiryDate: expiry.toISOString(),
+        diffMs: expiry.getTime() - now.getTime()
+    });
+
     const diffMs = expiry.getTime() - now.getTime();
 
     if (diffMs <= 0) {
+        console.log('Reservation expired');
         timeRemaining.value = 'Expired';
         clearInterval(countdownInterval.value);
         return;
@@ -72,14 +82,18 @@ const updateCountdown = () => {
     const seconds = diffSecs % 60;
 
     timeRemaining.value = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+    console.log('Updated time remaining:', timeRemaining.value);
 };
 
 onMounted(() => {
+    console.log('Component mounted, reservation data:', props.reservation);
+    console.log('Reserved until:', props.reservation.reserved_until);
     updateCountdown();
     countdownInterval.value = setInterval(updateCountdown, 1000);
 });
 
 onBeforeUnmount(() => {
+    console.log('Component unmounting, clearing interval');
     if (countdownInterval.value) {
         clearInterval(countdownInterval.value);
     }

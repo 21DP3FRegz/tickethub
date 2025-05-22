@@ -18,7 +18,18 @@ class ReservationController extends Controller
         $reservations = Auth::user()->reservations()
             ->with(['show.concert', 'seat'])
             ->where('reserved_until', '>=', now())
-            ->get();
+            ->get()
+            ->map(function ($reservation) {
+                return [
+                    'id' => $reservation->id,
+                    'show_id' => $reservation->show_id,
+                    'concert' => $reservation->show->concert->artist,
+                    'show' => (new \DateTime($reservation->show->start))->format('M d, Y h:i A'),
+                    'seat' => $reservation->seat->seat_number,
+                    // Format with timezone info
+                    'reserved_until' => $reservation->reserved_until->toISOString(),
+                ];
+            });
 
         return redirect()->route('dashboard')->with([
             'active_reservations' => $reservations,
@@ -35,23 +46,11 @@ class ReservationController extends Controller
 
         $show = Show::findOrFail($request->show_id);
         $seatIds = $request->seat_ids;
-        $seats = Seat::whereIn('id', $seatIds)
-            ->with(['reservation', 'ticket'])
-            ->get();
+        $seats = Seat::whereIn('id', $seatIds)->get();
 
         // Check if all seats are available
         $unavailableSeats = $seats->filter(function ($seat) {
-            // Check for ticket
-            if ($seat->ticket) {
-                return true;
-            }
-
-            // Check for valid reservation
-            if ($seat->reservation && $seat->reservation->reserved_until >= now()) {
-                return true;
-            }
-
-            return false;
+            return $seat->reservation || $seat->ticket;
         });
 
         if ($unavailableSeats->count() > 0) {
@@ -76,7 +75,6 @@ class ReservationController extends Controller
         }
 
         // Redirect to booking page with the first reservation
-        // The booking process will need to be updated to handle multiple reservations
         $firstReservation = $reservations[0];
 
         return redirect()->route('reservations.createBooking', $firstReservation)
@@ -90,8 +88,19 @@ class ReservationController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $reservation->delete();
-        return redirect()->route('dashboard')->with('success', 'Reservation cancelled.');
+        // Find all related reservations for the same show by this user
+        $relatedReservations = Reservation::where('user_id', Auth::id())
+            ->where('show_id', $reservation->show_id)
+            ->where('reserved_until', '>=', now())
+            ->get();
+
+        // Delete all related reservations
+        foreach ($relatedReservations as $relatedReservation) {
+            $relatedReservation->delete();
+        }
+
+        return redirect()->route('dashboard')
+            ->with('success', 'Reservation' . ($relatedReservations->count() > 1 ? 's' : '') . ' cancelled successfully.');
     }
 
     public function createBooking(Reservation $reservation)
@@ -108,28 +117,30 @@ class ReservationController extends Controller
             ->get();
 
         return Inertia::render('bookings/Create', [
-            'reservation' => $reservation,
-            'relatedReservations' => $relatedReservations,
+            'reservation' => [
+                'id' => $reservation->id,
+                'show' => [
+                    'id' => $reservation->show->id,
+                    'start' => $reservation->show->start,
+                    'concert' => [
+                        'artist' => $reservation->show->concert->artist,
+                    ]
+                ],
+                'seat' => [
+                    'seat_number' => $reservation->seat->seat_number,
+                ],
+                // Send timezone-aware timestamp
+                'reserved_until' => $reservation->reserved_until->toISOString(),
+            ],
+            'relatedReservations' => $relatedReservations->map(function($r) {
+                return [
+                    'id' => $r->id,
+                    'seat' => [
+                        'seat_number' => $r->seat->seat_number,
+                    ]
+                ];
+            }),
             'userEmail' => Auth::user()->email,
-        ]);
-    }
-
-    /**
-     * Check and release expired reservations
-     * This could be called via a scheduled task
-     */
-    public function releaseExpiredReservations()
-    {
-        $expiredReservations = Reservation::where('reserved_until', '<', now())
-            ->whereNull('deleted_at')
-            ->get();
-
-        foreach ($expiredReservations as $reservation) {
-            $reservation->delete();
-        }
-
-        return response()->json([
-            'message' => count($expiredReservations) . ' expired reservations released.',
         ]);
     }
 }

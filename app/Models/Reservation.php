@@ -8,6 +8,12 @@ class Reservation extends Model
 {
     protected $fillable = ['show_id', 'seat_id', 'reservation_token', 'reserved_until', 'user_id'];
 
+    protected $casts = [
+        'reserved_until' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
+
     public function user()
     {
         return $this->belongsTo(User::class);

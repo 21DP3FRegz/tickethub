@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/vue3';
-import { CalendarDays, Clock, MapPin, Ticket } from 'lucide-vue-next';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { CalendarDays, Clock, MapPin, Ticket, X } from 'lucide-vue-next';
+import { ref, computed } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -11,7 +12,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-defineProps({
+const props = defineProps({
     reservations: {
         type: Array,
         default: () => []
@@ -25,6 +26,57 @@ defineProps({
         default: () => []
     }
 });
+
+// Group reservations by show
+const groupedReservations = computed(() => {
+    const groups = {};
+
+    props.reservations.forEach(reservation => {
+        const key = reservation.show_id || reservation.show;
+
+        if (!groups[key]) {
+            groups[key] = {
+                id: key,
+                concert: reservation.concert,
+                show: reservation.show,
+                show_id: reservation.show_id,
+                location: reservation.location,
+                seats: [],
+                reservation_ids: []
+            };
+        }
+
+        groups[key].seats.push(reservation.seat);
+        groups[key].reservation_ids.push(reservation.id);
+    });
+
+    return Object.values(groups);
+});
+
+// Confirmation dialog for cancellation
+const showConfirmation = ref(false);
+const reservationToCancel = ref(null);
+
+const confirmCancelReservation = (reservation) => {
+    reservationToCancel.value = reservation;
+    showConfirmation.value = true;
+};
+
+const cancelReservation = () => {
+    if (reservationToCancel.value) {
+        router.delete(route('reservations.destroy', reservationToCancel.value.reservation_ids[0]), {
+            onSuccess: () => {
+                showConfirmation.value = false;
+                reservationToCancel.value = null;
+            }
+        });
+    }
+};
+
+const closeConfirmation = () => {
+    showConfirmation.value = false;
+    reservationToCancel.value = null;
+};
 </script>
 
 <template>
@@ -42,7 +94,7 @@ defineProps({
             <!-- Main Content - Reservations and Tickets -->
             <div class="lg:col-span-2 space-y-6">
                 <!-- Reservations Section - Only visible if there are reservations -->
-                <div v-if="reservations && reservations.length > 0" class="bg-card rounded-xl shadow-sm">
+                <div v-if="groupedReservations.length > 0" class="bg-card rounded-xl shadow-sm">
                     <div class="p-4 border-b border-border flex justify-between items-center">
                         <h2 class="text-lg font-medium flex items-center">
                             <div class="h-5 w-5 mr-2 text-primary flex items-center justify-center">
@@ -54,7 +106,7 @@ defineProps({
 
                     <div class="p-4">
                         <ul class="divide-y divide-border">
-                            <li v-for="reservation in reservations" :key="reservation.id" class="py-4 first:pt-0 last:pb-0">
+                            <li v-for="reservation in groupedReservations" :key="reservation.id" class="py-4 first:pt-0 last:pb-0">
                                 <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                                     <div>
                                         <h3 class="font-medium">{{ reservation.concert }}</h3>
@@ -64,14 +116,20 @@ defineProps({
                                         </div>
                                         <div class="flex items-center text-sm text-muted-foreground mt-1">
                                             <MapPin class="h-4 w-4 mr-1" />
-                                            <span>Seat: {{ reservation.seat }}</span>
+                                            <span>Seats: {{ reservation.seats.join(', ') }}</span>
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2">
-                                        <div class="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
-                                            Reserved
-                                        </div>
-                                        <Link :href="route('reservations.createBooking', reservation.id)" class="px-3 py-1 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90">
+                                        <button
+                                            @click="confirmCancelReservation(reservation)"
+                                            class="text-xs px-2 py-1 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+                                        >
+                                            Cancel Reservation
+                                        </button>
+                                        <Link
+                                            :href="route('reservations.createBooking', reservation.reservation_ids[0])"
+                                            class="px-3 py-1 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
+                                        >
                                             Complete Purchase
                                         </Link>
                                     </div>
@@ -173,6 +231,29 @@ defineProps({
                             </Link>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+        <!-- Confirmation Dialog -->
+        <div v-if="showConfirmation" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div class="bg-card rounded-lg p-6 max-w-md w-full mx-4">
+                <h3 class="text-lg font-medium mb-2">Cancel Reservation</h3>
+                <p class="text-muted-foreground mb-4">
+                    Are you sure you want to cancel your reservation for {{ reservationToCancel?.seats.length }} seat(s) at {{ reservationToCancel?.concert }}?
+                </p>
+                <div class="flex justify-end gap-2">
+                    <button
+                        @click="closeConfirmation"
+                        class="px-3 py-1 text-sm rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90"
+                    >
+                        Keep Reservation
+                    </button>
+                    <button
+                        @click="cancelReservation"
+                        class="px-3 py-1 text-sm rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                        Yes, Cancel
+                    </button>
                 </div>
             </div>
         </div>
