@@ -35,11 +35,23 @@ class ReservationController extends Controller
 
         $show = Show::findOrFail($request->show_id);
         $seatIds = $request->seat_ids;
-        $seats = Seat::whereIn('id', $seatIds)->get();
+        $seats = Seat::whereIn('id', $seatIds)
+            ->with(['reservation', 'ticket'])
+            ->get();
 
         // Check if all seats are available
         $unavailableSeats = $seats->filter(function ($seat) {
-            return $seat->reservation || $seat->ticket;
+            // Check for ticket
+            if ($seat->ticket) {
+                return true;
+            }
+
+            // Check for valid reservation
+            if ($seat->reservation && $seat->reservation->reserved_until >= now()) {
+                return true;
+            }
+
+            return false;
         });
 
         if ($unavailableSeats->count() > 0) {
@@ -99,6 +111,25 @@ class ReservationController extends Controller
             'reservation' => $reservation,
             'relatedReservations' => $relatedReservations,
             'userEmail' => Auth::user()->email,
+        ]);
+    }
+
+    /**
+     * Check and release expired reservations
+     * This could be called via a scheduled task
+     */
+    public function releaseExpiredReservations()
+    {
+        $expiredReservations = Reservation::where('reserved_until', '<', now())
+            ->whereNull('deleted_at')
+            ->get();
+
+        foreach ($expiredReservations as $reservation) {
+            $reservation->delete();
+        }
+
+        return response()->json([
+            'message' => count($expiredReservations) . ' expired reservations released.',
         ]);
     }
 }

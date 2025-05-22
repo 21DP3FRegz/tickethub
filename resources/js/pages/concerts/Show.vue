@@ -368,7 +368,11 @@ const getRowName = (rowId: number) => {
                                                         </div>
                                                         <div class="flex items-center">
                                                             <div class="w-4 h-4 bg-muted-foreground/30 rounded mr-2"></div>
-                                                            <span class="text-xs">Taken</span>
+                                                            <span class="text-xs">Booked</span>
+                                                        </div>
+                                                        <div class="flex items-center">
+                                                            <div class="w-4 h-4 bg-yellow-400/70 rounded mr-2"></div>
+                                                            <span class="text-xs">Reserved</span>
                                                         </div>
                                                         <div class="flex items-center">
                                                             <div class="w-4 h-4 bg-primary/70 ring-2 ring-primary rounded mr-2"></div>

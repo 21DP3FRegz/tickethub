@@ -6,19 +6,37 @@ const props = defineProps<{
         id: number;
         seat_number: string;
         row_id: number;
-        reservation: null | { id: number };
+        reservation: null | { id: number; reserved_until?: string };
         ticket: null | { id: number };
+        status?: string; // Add optional status property
     };
     isSelected: boolean;
 }>();
 
 const seatStatus = computed(() => {
+    // Use explicit status if available
+    if (props.seat.status) {
+        return props.seat.status;
+    }
+
+    // Fallback to computed status
     if (props.seat.ticket) {
         return 'booked';
     }
+
     if (props.seat.reservation) {
+        // Check if we have reserved_until information
+        if (props.seat.reservation.reserved_until) {
+            const reservedUntil = new Date(props.seat.reservation.reserved_until);
+            if (reservedUntil >= new Date()) {
+                return 'reserved';
+            }
+            // Expired reservation
+            return 'available';
+        }
         return 'reserved';
     }
+
     return 'available';
 });
 
@@ -29,8 +47,9 @@ const statusClasses = computed(() => {
 
     switch (seatStatus.value) {
         case 'booked':
-        case 'reserved':
             return 'bg-muted-foreground/30 cursor-not-allowed';
+        case 'reserved':
+            return 'bg-yellow-400/70 cursor-not-allowed text-black';
         case 'available':
             return 'bg-primary hover:bg-primary/90 text-primary-foreground';
         default:

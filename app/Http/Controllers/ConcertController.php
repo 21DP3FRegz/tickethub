@@ -48,12 +48,43 @@ class ConcertController extends Controller
             'shows' => function ($query) {
                 $query->where('start', '>=', now())->orderBy('start');
             },
-            'shows.seats', // Load seats for each show
-            'shows.rows' // Load rows for each show
+            'shows.seats.reservation', // Load reservations for each seat
+            'shows.seats.ticket',      // Load tickets for each seat
+            'shows.rows'               // Load rows for each show
         ]);
+
+        // Add seat status information for better frontend handling
+        $concert->shows->each(function ($show) {
+            $show->seats->each(function ($seat) {
+                // Add explicit status property
+                $seat->status = $this->determineSeatStatus($seat);
+            });
+        });
 
         return Inertia::render('concerts/Show', [
             'concert' => $concert,
         ]);
+    }
+
+    /**
+     * Determine the status of a seat
+     *
+     * @param \App\Models\Seat $seat
+     * @return string
+     */
+    private function determineSeatStatus($seat)
+    {
+        if ($seat->ticket) {
+            return 'booked';
+        }
+
+        if ($seat->reservation) {
+            // Check if reservation is still valid
+            if ($seat->reservation->reserved_until >= now()) {
+                return 'reserved';
+            }
+        }
+
+        return 'available';
     }
 }
