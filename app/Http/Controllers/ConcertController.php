@@ -16,7 +16,6 @@ class ConcertController extends Controller
     {
         $query = Concert::with(['location', 'shows', 'artist'])
             ->join('artists', 'concerts.artist_id', '=', 'artists.id')
-            ->orderBy('artists.name')
             ->select('concerts.*');
 
         // Search functionality
@@ -63,7 +62,35 @@ class ConcertController extends Controller
             });
         }
 
+        // Get concerts first, then sort by date
         $concerts = $query->get();
+
+        // Handle sorting by date (default behavior)
+        $sortField = $request->input('sort', 'date');
+        $sortDirection = $request->input('sort_direction', 'asc');
+
+        if ($sortField === 'date') {
+            // Sort concerts by their next show date
+            $concerts = $concerts->sort(function ($a, $b) use ($sortDirection) {
+                $dateA = $this->getNextShowDate($a);
+                $dateB = $this->getNextShowDate($b);
+
+                // Handle cases where concerts might not have shows
+                if (!$dateA && !$dateB) return 0;
+                if (!$dateA) return 1;
+                if (!$dateB) return -1;
+
+                $comparison = strtotime($dateA) <=> strtotime($dateB);
+
+                return $sortDirection === 'desc' ? -$comparison : $comparison;
+            });
+
+            // Reset array keys after sorting
+            $concerts = $concerts->values();
+        } else {
+            // Default sorting by artist name
+            $concerts = $concerts->sortBy('artist.name')->values();
+        }
 
         // Get user's bookings for these concerts if user is logged in
         $userBookings = [];
@@ -122,11 +149,37 @@ class ConcertController extends Controller
 
         return Inertia::render('concerts/Index', [
             'concerts' => $concerts,
-            'filters' => $request->only(['location', 'date', 'artist', 'search', 'location_id', 'artist_id']),
+            'filters' => $request->only(['location', 'date', 'artist', 'search', 'location_id', 'artist_id', 'sort', 'sort_direction']),
             'userBookings' => $userBookings,
             'locations' => $locations,
             'artists' => $artists
         ]);
+    }
+
+    /**
+     * Get the next show date for a concert
+     *
+     * @param \App\Models\Concert $concert
+     * @return string|null
+     */
+    private function getNextShowDate($concert)
+    {
+        if (!$concert->shows || $concert->shows->count() === 0) {
+            return null;
+        }
+
+        // Sort shows by date
+        $sortedShows = $concert->shows->sortBy('start');
+
+        // Find the first show that's in the future
+        $now = now();
+        $futureShows = $sortedShows->filter(function ($show) use ($now) {
+            return strtotime($show->start) > $now->timestamp;
+        });
+
+        return $futureShows->count() > 0
+            ? $futureShows->first()->start
+            : $sortedShows->first()->start;
     }
 
     public function show(Concert $concert)
