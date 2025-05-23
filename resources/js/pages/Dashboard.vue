@@ -1,261 +1,612 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
-import { type BreadcrumbItem } from '@/types';
-import { Head, Link, router } from '@inertiajs/vue3';
-import { CalendarDays, Clock, MapPin, Ticket, X } from 'lucide-vue-next';
-import { ref, computed } from 'vue';
+import { Head, Link, router, route } from '@inertiajs/vue3';
+import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
+import { ref, watch, computed, onMounted } from 'vue';
+import {
+    CalendarDays,
+    MapPin,
+    Music,
+    Search,
+    X,
+    User,
+    Ticket,
+    Filter,
+    ArrowUpDown,
+    ArrowDown,
+    ArrowUp,
+    Clock,
+    Calendar
+} from 'lucide-vue-next';
+import debounce from 'lodash/debounce';
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: '/dashboard',
-    },
+const props = defineProps<{
+    concerts: Array<{
+        id: number;
+        artist: string | { name: string; id?: number };
+        artist_id?: number;
+        location: { name: string; id: number };
+        shows: Array<{ start: string; end?: string }>;
+    }>;
+    filters: {
+        location?: string;
+        date?: string;
+        artist?: string;
+        search?: string;
+        location_id?: number;
+        artist_id?: number;
+        sort?: string;
+        sort_direction?: string;
+    };
+    userBookings?: Record<string, any>;
+    locations: Array<{ id: number; name: string }>;
+    artists: Array<{ id: number; name: string }>;
+}>();
+
+// Create reactive filter state
+const filterLocation = ref(props.filters.location || '');
+const filterDate = ref(props.filters.date || '');
+const filterArtist = ref(props.filters.artist || '');
+const searchQuery = ref(props.filters.search || '');
+const selectedLocationId = ref(props.filters.location_id || '');
+const selectedArtistId = ref(props.filters.artist_id || '');
+const isFilterOpen = ref(false);
+
+// Sorting options
+const sortField = ref(props.filters.sort || 'artist');
+const sortDirection = ref(props.filters.sort_direction || 'asc');
+
+// Date range options
+const dateRanges = [
+    { value: '', label: 'Any Date' },
+    { value: 'today', label: 'Today' },
+    { value: 'tomorrow', label: 'Tomorrow' },
+    { value: 'this-week', label: 'This Week' },
+    { value: 'this-month', label: 'This Month' },
+    { value: 'next-month', label: 'Next Month' },
+    { value: 'custom', label: 'Custom Date' }
 ];
 
-const props = defineProps({
-    reservations: {
-        type: Array,
-        default: () => []
-    },
-    bookings: {
-        type: Array,
-        default: () => []
-    },
-    upcomingShows: {
-        type: Array,
-        default: () => []
+const selectedDateRange = ref('');
+const showCustomDateInput = computed(() => selectedDateRange.value === 'custom');
+
+// Format date for display
+const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+};
+
+// Format date in a shorter way
+const formatShortDate = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+    });
+};
+
+// Format time
+const formatTime = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+};
+
+// Apply filters and sorting
+const applyFilters = () => {
+    // If date range is selected, convert it to a date string
+    let dateFilter = filterDate.value;
+    if (selectedDateRange.value && selectedDateRange.value !== 'custom') {
+        const today = new Date();
+
+        switch(selectedDateRange.value) {
+            case 'today':
+                dateFilter = today.toISOString().split('T')[0];
+                break;
+            case 'tomorrow':
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                dateFilter = tomorrow.toISOString().split('T')[0];
+                break;
+            case 'this-week':
+                // This is simplified - in a real app you might want to set a date range
+                const endOfWeek = new Date(today);
+                endOfWeek.setDate(endOfWeek.getDate() + (6 - today.getDay()));
+                dateFilter = today.toISOString().split('T')[0] + ',' + endOfWeek.toISOString().split('T')[0];
+                break;
+            case 'this-month':
+                const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                dateFilter = today.toISOString().split('T')[0] + ',' + endOfMonth.toISOString().split('T')[0];
+                break;
+            case 'next-month':
+                const startOfNextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+                const endOfNextMonth = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+                dateFilter = startOfNextMonth.toISOString().split('T')[0] + ',' + endOfNextMonth.toISOString().split('T')[0];
+                break;
+        }
+    }
+
+    router.get(route('concerts.index'), {
+        location: filterLocation.value || undefined,
+        date: dateFilter || undefined,
+        artist: filterArtist.value || undefined,
+        search: searchQuery.value || undefined,
+        location_id: selectedLocationId.value || undefined,
+        artist_id: selectedArtistId.value || undefined,
+        sort: sortField.value || undefined,
+        sort_direction: sortDirection.value || undefined
+    }, {
+        preserveState: true,
+        replace: true
+    });
+};
+
+// Toggle sort direction
+const toggleSort = (field: string) => {
+    if (sortField.value === field) {
+        sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortField.value = field;
+        sortDirection.value = 'asc';
+    }
+    applyFilters();
+};
+
+// Get sort icon
+const getSortIcon = (field: string) => {
+    if (sortField.value !== field) {
+        return ArrowUpDown;
+    }
+    return sortDirection.value === 'asc' ? ArrowUp : ArrowDown;
+};
+
+// Debounced search function for real-time filtering
+const debouncedSearch = debounce(() => {
+    applyFilters();
+}, 300);
+
+// Watch for changes in search query
+watch(searchQuery, () => {
+    debouncedSearch();
+});
+
+// Watch for date range changes
+watch(selectedDateRange, (newValue) => {
+    if (newValue !== 'custom') {
+        filterDate.value = '';
+        applyFilters();
     }
 });
 
-// Group reservations by show
-const groupedReservations = computed(() => {
-    const groups = {};
+// Clear all filters
+const clearFilters = () => {
+    filterLocation.value = '';
+    filterDate.value = '';
+    filterArtist.value = '';
+    searchQuery.value = '';
+    selectedLocationId.value = '';
+    selectedArtistId.value = '';
+    selectedDateRange.value = '';
+    sortField.value = 'artist';
+    sortDirection.value = 'asc';
+    router.get(route('concerts.index'), {}, {
+        preserveState: true,
+        replace: true
+    });
+};
 
-    props.reservations.forEach(reservation => {
-        const key = reservation.show_id || reservation.show;
+// Watch for Enter key in inputs
+const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        applyFilters();
+    }
+};
 
-        if (!groups[key]) {
-            groups[key] = {
-                id: key,
-                concert: reservation.concert,
-                show: reservation.show,
-                show_id: reservation.show_id,
-                location: reservation.location,
-                seats: [],
-                reservation_ids: []
-            };
-        }
+// Check if user has bookings for a concert
+const hasBookingsForConcert = (concertId: number) => {
+    if (!props.userBookings) return false;
+    return Object.values(props.userBookings).some(
+        (booking: any) => booking.concert_id === concertId
+    );
+};
 
-        groups[key].seats.push(reservation.seat);
-        groups[key].reservation_ids.push(reservation.id);
+// Get user bookings for a concert
+const getBookingsForConcert = (concertId: number) => {
+    if (!props.userBookings) return null;
+    return Object.values(props.userBookings).find(
+        (booking: any) => booking.concert_id === concertId
+    );
+};
+
+// Toggle filter panel
+const toggleFilter = () => {
+    isFilterOpen.value = !isFilterOpen.value;
+};
+
+// Update the component to properly handle the artist object
+const getArtistName = (concert) => {
+    if (typeof concert.artist === 'object' && concert.artist !== null) {
+        return concert.artist.name;
+    }
+    return concert.artist; // Fallback to the string if it's not an object
+};
+
+// Get the next show date for a concert
+const getNextShowDate = (concert) => {
+    if (!concert.shows || concert.shows.length === 0) return null;
+
+    // Sort shows by date
+    const sortedShows = [...concert.shows].sort((a, b) => {
+        return new Date(a.start).getTime() - new Date(b.start).getTime();
     });
 
-    return Object.values(groups);
-});
+    // Find the first show that's in the future
+    const now = new Date();
+    const futureShows = sortedShows.filter(show => new Date(show.start) > now);
 
-// Confirmation dialog for cancellation
-const showConfirmation = ref(false);
-const reservationToCancel = ref(null);
-
-const confirmCancelReservation = (reservation) => {
-    reservationToCancel.value = reservation;
-    showConfirmation.value = true;
+    return futureShows.length > 0 ? futureShows[0].start : sortedShows[0].start;
 };
 
-const cancelReservation = () => {
-    if (reservationToCancel.value) {
-        router.delete(route('reservations.destroy', reservationToCancel.value.reservation_ids[0]), {
-            onSuccess: () => {
-                showConfirmation.value = false;
-                reservationToCancel.value = null;
-            }
-        });
-    }
-};
+// Get the duration of a show
+const getShowDuration = (show) => {
+    if (!show.end) return null;
 
-const closeConfirmation = () => {
-    showConfirmation.value = false;
-    reservationToCancel.value = null;
+    const start = new Date(show.start);
+    const end = new Date(show.end);
+    const durationMs = end.getTime() - start.getTime();
+
+    // Convert to minutes
+    return Math.round(durationMs / (1000 * 60));
 };
 </script>
 
 <template>
-    <Head title="Dashboard" />
+    <Head title="Concerts" />
+    <AppSidebarLayout :breadcrumbs="[{ title: 'Concerts', href: '/concerts' }]">
+        <div class="p-6">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+                <h1 class="text-2xl font-bold mb-2 md:mb-0">Upcoming Concerts</h1>
 
-    <AppLayout :breadcrumbs="breadcrumbs">
-        <!-- Dashboard Overview -->
-        <div class="mb-8 p-4">
-            <h1 class="text-2xl font-bold mb-2">Welcome Back, {{ $page.props.auth.user.name }}</h1>
-            <p class="text-muted-foreground">Manage your reservations and tickets from your personal dashboard.</p>
-        </div>
+                <div class="flex items-center space-x-2">
+          <span class="text-sm text-muted-foreground">
+            {{ concerts.length }} {{ concerts.length === 1 ? 'concert' : 'concerts' }} found
+          </span>
+                </div>
+            </div>
 
-        <!-- Dashboard Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 p-4">
-            <!-- Main Content - Reservations and Tickets -->
-            <div class="lg:col-span-2 space-y-6">
-                <!-- Reservations Section - Only visible if there are reservations -->
-                <div v-if="groupedReservations.length > 0" class="bg-card rounded-xl shadow-sm">
-                    <div class="p-4 border-b border-border flex justify-between items-center">
-                        <h2 class="text-lg font-medium flex items-center">
-                            <div class="h-5 w-5 mr-2 text-primary flex items-center justify-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <!-- Enhanced Search and Filter Bar -->
+            <div class="bg-card rounded-lg p-4 mb-8 shadow-sm border border-border">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center">
+                        <Search class="h-5 w-5 text-primary mr-2" />
+                        <h2 class="text-lg font-medium">Find Concerts</h2>
+                    </div>
+                    <button
+                        @click="toggleFilter"
+                        class="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors"
+                    >
+                        <Filter class="h-4 w-4 mr-1" />
+                        {{ isFilterOpen ? 'Hide Filters' : 'Show Filters' }}
+                    </button>
+                </div>
+
+                <!-- Search Bar -->
+                <div class="relative mb-4">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Search class="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <input
+                        v-model="searchQuery"
+                        placeholder="Search by artist or venue"
+                        class="w-full pl-10 pr-3 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary"
+                        @keydown="handleKeyDown"
+                    />
+                </div>
+
+                <!-- Advanced Filters -->
+                <div v-if="isFilterOpen" class="space-y-4 mt-4 pt-4 border-t border-border">
+                    <!-- Filter Selects -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Artist Select -->
+                        <div>
+                            <label for="artist_id" class="block text-sm font-medium text-muted-foreground mb-1">
+                                Artist
+                            </label>
+                            <select
+                                id="artist_id"
+                                v-model="selectedArtistId"
+                                class="w-full px-3 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary"
+                            >
+                                <option value="">All Artists</option>
+                                <option v-for="artist in artists" :key="artist.id" :value="artist.id">
+                                    {{ artist.name }}
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- Location Select -->
+                        <div>
+                            <label for="location_id" class="block text-sm font-medium text-muted-foreground mb-1">
+                                Venue
+                            </label>
+                            <select
+                                id="location_id"
+                                v-model="selectedLocationId"
+                                class="w-full px-3 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary"
+                            >
+                                <option value="">All Venues</option>
+                                <option v-for="location in locations" :key="location.id" :value="location.id">
+                                    {{ location.name }}
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- Date Range Select -->
+                        <div>
+                            <label for="date_range" class="block text-sm font-medium text-muted-foreground mb-1">
+                                Date Range
+                            </label>
+                            <select
+                                id="date_range"
+                                v-model="selectedDateRange"
+                                class="w-full px-3 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary"
+                            >
+                                <option v-for="range in dateRanges" :key="range.value" :value="range.value">
+                                    {{ range.label }}
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Custom Date Input (only shown when Custom Date is selected) -->
+                    <div v-if="showCustomDateInput" class="mt-2">
+                        <label for="date" class="block text-sm font-medium text-muted-foreground mb-1">
+                            Select Date
+                        </label>
+                        <div class="relative">
+                            <CalendarDays class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <input
+                                id="date"
+                                v-model="filterDate"
+                                type="date"
+                                class="w-full pl-10 pr-3 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Sort Options -->
+                    <div class="border-t border-border pt-4">
+                        <h3 class="text-sm font-medium text-muted-foreground mb-3">Sort By</h3>
+                        <div class="flex flex-wrap gap-2">
+                            <button
+                                @click="toggleSort('artist')"
+                                class="px-3 py-1.5 rounded-md text-sm flex items-center"
+                                :class="sortField === 'artist' ? 'bg-primary/10 text-primary' : 'bg-secondary/50 text-secondary-foreground hover:bg-secondary/80'"
+                            >
+                                <component :is="getSortIcon('artist')" class="h-3.5 w-3.5 mr-1.5" />
+                                Artist
+                            </button>
+                            <button
+                                @click="toggleSort('location')"
+                                class="px-3 py-1.5 rounded-md text-sm flex items-center"
+                                :class="sortField === 'location' ? 'bg-primary/10 text-primary' : 'bg-secondary/50 text-secondary-foreground hover:bg-secondary/80'"
+                            >
+                                <component :is="getSortIcon('location')" class="h-3.5 w-3.5 mr-1.5" />
+                                Venue
+                            </button>
+                            <button
+                                @click="toggleSort('date')"
+                                class="px-3 py-1.5 rounded-md text-sm flex items-center"
+                                :class="sortField === 'date' ? 'bg-primary/10 text-primary' : 'bg-secondary/50 text-secondary-foreground hover:bg-secondary/80'"
+                            >
+                                <component :is="getSortIcon('date')" class="h-3.5 w-3.5 mr-1.5" />
+                                Date
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-2">
+                        <button
+                            type="button"
+                            @click="clearFilters"
+                            class="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-colors"
+                        >
+                            Clear Filters
+                        </button>
+                        <button
+                            type="button"
+                            @click="applyFilters"
+                            class="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-colors"
+                        >
+                            Apply Filters
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Active Filters -->
+                <div v-if="filters.location || filters.date || filters.artist || filters.search || filters.location_id || filters.artist_id || filters.sort" class="mt-4 flex flex-wrap gap-2">
+                    <div v-if="filters.search" class="inline-flex items-center bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm">
+                        <span class="mr-1">Search:</span>
+                        <span class="font-medium">{{ filters.search }}</span>
+                        <button
+                            @click="() => { searchQuery = ''; applyFilters(); }"
+                            class="ml-2 text-secondary-foreground/70 hover:text-secondary-foreground transition-colors"
+                        >
+                            <X class="h-3 w-3" />
+                        </button>
+                    </div>
+
+                    <div v-if="filters.artist_id" class="inline-flex items-center bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm">
+                        <span class="mr-1">Artist:</span>
+                        <span class="font-medium">{{ artists.find(a => a.id == filters.artist_id)?.name }}</span>
+                        <button
+                            @click="() => { selectedArtistId = ''; applyFilters(); }"
+                            class="ml-2 text-secondary-foreground/70 hover:text-secondary-foreground transition-colors"
+                        >
+                            <X class="h-3 w-3" />
+                        </button>
+                    </div>
+
+                    <div v-if="filters.location_id" class="inline-flex items-center bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm">
+                        <span class="mr-1">Venue:</span>
+                        <span class="font-medium">{{ locations.find(l => l.id == filters.location_id)?.name }}</span>
+                        <button
+                            @click="() => { selectedLocationId = ''; applyFilters(); }"
+                            class="ml-2 text-secondary-foreground/70 hover:text-secondary-foreground transition-colors"
+                        >
+                            <X class="h-3 w-3" />
+                        </button>
+                    </div>
+
+                    <div v-if="filters.date" class="inline-flex items-center bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm">
+                        <span class="mr-1">Date:</span>
+                        <span class="font-medium">{{ filters.date }}</span>
+                        <button
+                            @click="() => { filterDate = ''; selectedDateRange = ''; applyFilters(); }"
+                            class="ml-2 text-secondary-foreground/70 hover:text-secondary-foreground transition-colors"
+                        >
+                            <X class="h-3 w-3" />
+                        </button>
+                    </div>
+
+                    <div v-if="filters.sort" class="inline-flex items-center bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm">
+                        <span class="mr-1">Sort:</span>
+                        <span class="font-medium">{{ filters.sort }} ({{ filters.sort_direction === 'asc' ? 'A-Z' : 'Z-A' }})</span>
+                        <button
+                            @click="() => { sortField = 'artist'; sortDirection = 'asc'; applyFilters(); }"
+                            class="ml-2 text-secondary-foreground/70 hover:text-secondary-foreground transition-colors"
+                        >
+                            <X class="h-3 w-3" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enhanced Concert List -->
+            <div v-if="concerts.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div
+                    v-for="concert in concerts"
+                    :key="concert.id"
+                    class="bg-card rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-border group"
+                >
+                    <!-- Concert Card Header with Gradient Background -->
+                    <div class="h-32 bg-gradient-to-r from-primary/20 to-accent/10 relative overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+
+                        <!-- Date Badge -->
+                        <div class="absolute top-3 right-3 bg-black/60 backdrop-blur-sm rounded-md px-2 py-1 text-white text-xs flex items-center">
+                            <Calendar class="h-3 w-3 mr-1" />
+                            {{ formatShortDate(getNextShowDate(concert)) }}
+                        </div>
+
+                        <!-- Artist and Venue Info -->
+                        <div class="absolute bottom-0 left-0 p-4 text-white">
+                            <h2 class="text-xl font-bold truncate group-hover:text-primary transition-colors">
+                                {{ getArtistName(concert) }}
+                            </h2>
+                            <div class="flex items-center text-sm text-white/80 mt-1">
+                                <MapPin class="h-3.5 w-3.5 mr-1 flex-shrink-0" />
+                                <span class="truncate">{{ concert.location.name }}</span>
                             </div>
-                            Active Reservations
-                        </h2>
+                        </div>
                     </div>
 
                     <div class="p-4">
-                        <ul class="divide-y divide-border">
-                            <li v-for="reservation in groupedReservations" :key="reservation.id" class="py-4 first:pt-0 last:pb-0">
-                                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                                    <div>
-                                        <h3 class="font-medium">{{ reservation.concert }}</h3>
-                                        <div class="flex items-center text-sm text-muted-foreground mt-1">
-                                            <CalendarDays class="h-4 w-4 mr-1" />
-                                            <span>{{ reservation.show }}</span>
+                        <!-- User's Bookings for this concert -->
+                        <div v-if="hasBookingsForConcert(concert.id)" class="mb-4 p-3 bg-secondary/50 border border-secondary rounded-md">
+                            <div class="flex items-center text-secondary-foreground mb-2">
+                                <Ticket class="h-4 w-4 mr-1" />
+                                <span class="font-medium text-sm">Your Booked Tickets</span>
+                            </div>
+                            <div v-for="(show, index) in getBookingsForConcert(concert.id).shows" :key="index" class="text-xs text-secondary-foreground mb-1">
+                                <div class="font-medium">{{ show.show_date }}</div>
+                                <div class="flex flex-wrap gap-1 mt-1">
+                  <span v-for="(seat, seatIndex) in show.seats" :key="seatIndex"
+                        class="px-2 py-0.5 bg-secondary border border-secondary/50 rounded-full">
+                    {{ seat.row_name }}{{ seat.seat_number }}
+                  </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Show Details -->
+                        <div v-if="concert.shows && concert.shows.length > 0" class="mb-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <p class="text-xs uppercase tracking-wider text-muted-foreground font-medium">Next Show</p>
+                                <span v-if="concert.shows.length > 1" class="text-xs text-primary">
+                  +{{ concert.shows.length - 1 }} more
+                </span>
+                            </div>
+
+                            <!-- Next Show Card -->
+                            <div class="bg-muted/30 rounded-md p-3 border border-border">
+                                <div class="flex justify-between items-center">
+                                    <div class="flex items-center">
+                                        <div class="bg-primary/10 rounded-md p-1.5 mr-3">
+                                            <Clock class="h-5 w-5 text-primary" />
                                         </div>
-                                        <div class="flex items-center text-sm text-muted-foreground mt-1">
-                                            <MapPin class="h-4 w-4 mr-1" />
-                                            <span>Seats: {{ reservation.seats.join(', ') }}</span>
+                                        <div>
+                                            <div class="font-medium">{{ formatTime(getNextShowDate(concert)) }}</div>
+                                            <div class="text-xs text-muted-foreground">{{ formatDate(getNextShowDate(concert)) }}</div>
                                         </div>
                                     </div>
-                                    <div class="flex items-center gap-2">
-                                        <button
-                                            @click="confirmCancelReservation(reservation)"
-                                            class="text-xs px-2 py-1 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
-                                        >
-                                            Cancel Reservation
-                                        </button>
-                                        <Link
-                                            :href="route('reservations.createBooking', reservation.reservation_ids[0])"
-                                            class="px-3 py-1 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
-                                        >
-                                            Complete Purchase
-                                        </Link>
+                                    <div class="text-xs px-2 py-1 bg-primary/10 rounded-full text-primary">
+                                        {{ concert.shows[0].end ? `${getShowDuration(concert.shows[0])} min` : 'Live' }}
                                     </div>
                                 </div>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
+                            </div>
+                        </div>
+                        <div v-else class="mb-4 p-3 bg-muted/30 rounded-md border border-border text-center">
+                            <p class="text-sm text-muted-foreground">No upcoming shows</p>
+                        </div>
 
-                <!-- Tickets Section -->
-                <div class="bg-card rounded-xl shadow-sm">
-                    <div class="p-4 border-b border-border flex justify-between items-center">
-                        <h2 class="text-lg font-medium flex items-center">
-                            <Ticket class="h-5 w-5 mr-2 text-primary" />
-                            Your Tickets
-                        </h2>
-                        <Link :href="route('bookings.index')" class="text-sm text-primary hover:underline">
-                            View All
+                        <!-- Action Button -->
+                        <Link
+                            :href="route('concerts.show', concert.id)"
+                            class="block w-full text-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                        >
+                            View Details
                         </Link>
                     </div>
-
-                    <div class="p-4">
-                        <div v-if="bookings && bookings.length > 0">
-                            <ul class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <li v-for="booking in bookings" :key="booking.id" class="bg-muted/50 rounded-lg p-4 hover:bg-muted transition-colors">
-                                    <div class="flex flex-col h-full">
-                                        <div class="flex-1">
-                                            <h3 class="font-medium">{{ booking.concert }}</h3>
-                                            <div class="flex items-center text-sm text-muted-foreground mt-1">
-                                                <CalendarDays class="h-4 w-4 mr-1" />
-                                                <span>{{ booking.show }}</span>
-                                            </div>
-                                            <div class="flex items-center text-sm text-muted-foreground mt-1">
-                                                <MapPin class="h-4 w-4 mr-1" />
-                                                <span>Seat: {{ booking.seat }}</span>
-                                            </div>
-                                            <div class="mt-2 p-2 bg-secondary/50 rounded text-sm font-mono">
-                                                {{ booking.code }}
-                                            </div>
-                                        </div>
-                                        <div class="mt-4 pt-4 border-t border-border flex justify-between items-center">
-                                            <span class="text-xs px-2 py-1 rounded-full bg-accent/10 text-accent">
-                                                Confirmed
-                                            </span>
-                                            <Link :href="route('bookings.show', booking.booking_id)" class="text-sm text-primary hover:underline">
-                                                View Details
-                                            </Link>
-                                        </div>
-                                    </div>
-                                </li>
-                            </ul>
-                        </div>
-                        <div v-else class="py-8 text-center">
-                            <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted mb-4">
-                                <Ticket class="h-6 w-6 text-muted-foreground" />
-                            </div>
-                            <h3 class="text-lg font-medium mb-1">No Tickets Found</h3>
-                            <p class="text-muted-foreground mb-4">You haven't purchased any tickets yet.</p>
-                            <Link :href="route('concerts.index')" class="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90">
-                                Browse Concerts
-                            </Link>
-                        </div>
-                    </div>
                 </div>
             </div>
 
-            <!-- Sidebar - Upcoming Shows only -->
-            <div>
-                <!-- Upcoming Shows -->
-                <div class="bg-card rounded-xl shadow-sm">
-                    <div class="p-4 border-b border-border">
-                        <h2 class="text-lg font-medium">Upcoming Shows</h2>
-                    </div>
-                    <div class="p-4">
-                        <div v-if="upcomingShows && upcomingShows.length > 0">
-                            <ul class="divide-y divide-border">
-                                <li v-for="show in upcomingShows" :key="show.id" class="py-3 first:pt-0 last:pb-0">
-                                    <h3 class="font-medium">{{ show.artist }}</h3>
-                                    <div class="flex items-center text-sm text-muted-foreground mt-1">
-                                        <Clock class="h-4 w-4 mr-1" />
-                                        <span>{{ show.date }}</span>
-                                    </div>
-                                    <div class="flex items-center text-sm text-muted-foreground mt-1">
-                                        <MapPin class="h-4 w-4 mr-1" />
-                                        <span>{{ show.location }}</span>
-                                    </div>
-                                    <div class="mt-2">
-                                        <Link :href="route('concerts.show', show.id)" class="text-sm text-primary hover:underline">
-                                            View Details
-                                        </Link>
-                                    </div>
-                                </li>
-                            </ul>
-                        </div>
-                        <div v-else class="py-6 text-center">
-                            <p class="text-muted-foreground mb-4">No upcoming shows at the moment.</p>
-                            <Link :href="route('concerts.index')" class="text-sm text-primary hover:underline">
-                                Check back later
-                            </Link>
-                        </div>
-                    </div>
+            <!-- Empty State -->
+            <div v-else class="bg-card rounded-lg p-8 text-center border border-border">
+                <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted mb-4">
+                    <Music class="h-6 w-6 text-primary" />
                 </div>
-            </div>
-        </div>
-        <!-- Confirmation Dialog -->
-        <div v-if="showConfirmation" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div class="bg-card rounded-lg p-6 max-w-md w-full mx-4">
-                <h3 class="text-lg font-medium mb-2">Cancel Reservation</h3>
-                <p class="text-muted-foreground mb-4">
-                    Are you sure you want to cancel your reservation for {{ reservationToCancel?.seats.length }} seat(s) at {{ reservationToCancel?.concert }}?
+                <h3 class="text-lg font-medium mb-2">No Concerts Found</h3>
+                <p class="text-muted-foreground mb-6">
+                    {{ filters.location || filters.date || filters.artist || filters.search || filters.location_id || filters.artist_id ? 'No concerts match your filters.' : 'There are no upcoming concerts at the moment.' }}
                 </p>
-                <div class="flex justify-end gap-2">
-                    <button
-                        @click="closeConfirmation"
-                        class="px-3 py-1 text-sm rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90"
-                    >
-                        Keep Reservation
-                    </button>
-                    <button
-                        @click="cancelReservation"
-                        class="px-3 py-1 text-sm rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                        Yes, Cancel
-                    </button>
-                </div>
+                <button
+                    v-if="filters.location || filters.date || filters.artist || filters.search || filters.location_id || filters.artist_id"
+                    @click="clearFilters"
+                    class="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                >
+                    Clear Filters
+                </button>
             </div>
         </div>
-    </AppLayout>
+    </AppSidebarLayout>
 </template>
+
+<style scoped>
+/* Add any additional component-specific styles here */
+.animation-delay-1000 {
+    animation-delay: 1s;
+}
+</style>

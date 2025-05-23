@@ -17,17 +17,16 @@ class ReservationController extends Controller
     public function index()
     {
         $reservations = Auth::user()->reservations()
-            ->with(['show.concert', 'seat'])
+            ->with(['show.concert.artist', 'seat'])
             ->where('reserved_until', '>=', now())
             ->get()
             ->map(function ($reservation) {
                 return [
                     'id' => $reservation->id,
                     'show_id' => $reservation->show_id,
-                    'concert' => $reservation->show->concert->artist,
+                    'concert' => $reservation->show->concert->artist->name,
                     'show' => (new \DateTime($reservation->show->start))->format('M d, Y h:i A'),
                     'seat' => $reservation->seat->seat_number,
-                    // Format with timezone info
                     'reserved_until' => $reservation->reserved_until->toISOString(),
                 ];
             });
@@ -121,7 +120,7 @@ class ReservationController extends Controller
     {
         Gate::authorize('view', $reservation);
 
-        $reservation->load(['show.concert', 'seat']);
+        $reservation->load(['show.concert.artist', 'seat']);
 
         // Get all related reservations for the same show by this user
         $relatedReservations = Reservation::where('user_id', Auth::id())
@@ -137,13 +136,12 @@ class ReservationController extends Controller
                     'id' => $reservation->show->id,
                     'start' => $reservation->show->start,
                     'concert' => [
-                        'artist' => $reservation->show->concert->artist,
+                        'artist' => $reservation->show->concert->artist->name,
                     ]
                 ],
                 'seat' => [
                     'seat_number' => $reservation->seat->seat_number,
                 ],
-                // Send timezone-aware timestamp
                 'reserved_until' => $reservation->reserved_until->toISOString(),
             ],
             'relatedReservations' => $relatedReservations->map(function($r) {

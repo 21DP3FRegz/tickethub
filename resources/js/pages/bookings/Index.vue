@@ -12,7 +12,7 @@ const props = defineProps<{
             id: number;
             code: string;
             name: string;
-            show: { id: number; start: string; concert: { artist: string } };
+            show: { id: number; start: string; concert: { artist: { name: string; } } };
             seat: { seat_number: string };
         }>;
     }>;
@@ -66,7 +66,7 @@ const viewTicketDetails = (bookingId: number, ticketId: number) => {
                                 class="bg-muted/30 rounded-lg overflow-hidden border border-border p-3 cursor-pointer hover:border-primary/50 hover:shadow-sm transition-all"
                             >
                                 <!-- Event Header -->
-                                <div class="font-medium truncate mb-2">{{ ticket.show.concert.artist }}</div>
+                                <div class="font-medium truncate mb-2">{{ ticket.show.concert.artist.name }}</div>
 
                                 <!-- Ticket Details -->
                                 <div class="space-y-2 text-sm">

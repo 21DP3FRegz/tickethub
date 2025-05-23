@@ -10,7 +10,7 @@ import { CalendarDays, MapPin, Music, Clock, Ticket, X, Calendar, AlertCircle } 
 const props = defineProps<{
     concert: {
         id: number;
-        artist: string;
+        artist: string | { name: string };
         location: { name: string };
         shows: Array<{
             id: number;
@@ -59,6 +59,14 @@ const form = useForm<{
     seat_ids: [],
 });
 const error = ref('');
+
+// Add a function to get the artist name
+const getArtistName = (concert) => {
+    if (typeof concert.artist === 'object' && concert.artist !== null) {
+        return concert.artist.name;
+    }
+    return concert.artist; // Fallback to the string if it's not an object
+};
 
 onMounted(() => {
     console.log('Component mounted with concert data:', props.concert);
@@ -236,11 +244,11 @@ const getUserBookedSeatsForShow = (showId: number) => {
 </script>
 
 <template>
-    <Head :title="concert.artist" />
-    <AppSidebarLayout :breadcrumbs="[{ title: 'Concerts', href: '/concerts' }, { title: concert.artist }]">
+    <Head :title="getArtistName(concert)" />
+    <AppSidebarLayout :breadcrumbs="[{ title: 'Concerts', href: '/concerts' }, { title: getArtistName(concert) }]">
         <!-- Header Section -->
         <div class="mb-8 p-4">
-            <h1 class="text-2xl font-bold mb-2">{{ concert.artist }}</h1>
+            <h1 class="text-2xl font-bold mb-2">{{ getArtistName(concert) }}</h1>
             <p class="text-muted-foreground flex items-center">
                 <MapPin class="h-4 w-4 mr-1" />
                 {{ concert.location.name }}
@@ -252,7 +260,7 @@ const getUserBookedSeatsForShow = (showId: number) => {
             <div class="bg-secondary/30 border border-secondary rounded-xl p-4">
                 <h2 class="text-lg font-medium flex items-center text-secondary-foreground mb-3">
                     <Ticket class="h-5 w-5 mr-2 text-accent" />
-                    Your Tickets for {{ concert.artist }}
+                    Your Tickets for {{ getArtistName(concert) }}
                 </h2>
 
                 <div v-for="(show, index) in userBookings.shows" :key="index" class="mb-4 last:mb-0">
@@ -379,7 +387,7 @@ const getUserBookedSeatsForShow = (showId: number) => {
                                         </DialogHeader>
                                         <div class="mt-4">
                                             <div class="mb-4">
-                                                <h3 class="font-medium mb-1">{{ concert.artist }}</h3>
+                                                <h3 class="font-medium mb-1">{{ getArtistName(concert) }}</h3>
                                                 <p class="text-sm text-muted-foreground">{{ formatDate(show.start).full }}</p>
                                                 <p class="text-sm text-muted-foreground">{{ concert.location.name }}</p>
                                             </div>

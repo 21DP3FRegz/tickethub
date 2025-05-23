@@ -37,7 +37,9 @@ const props = defineProps<{
                 start: string;
                 end: string;
                 concert: {
-                    artist: string;
+                    artist: {
+                        name: string;
+                    }
                     location: {
                         name: string;
                     }
@@ -88,8 +90,8 @@ const shareTicket = async (ticket) => {
     if (navigator.share) {
         try {
             await navigator.share({
-                title: `Ticket for ${ticket.show.concert.artist}`,
-                text: `My ticket for ${ticket.show.concert.artist} on ${formatDate(ticket.show.start).full}. Seat: ${ticket.seat.seat_number}`,
+                title: `Ticket for ${ticket.show.concert.artist.name}`,
+                text: `My ticket for ${ticket.show.concert.artist.name} on ${formatDate(ticket.show.start).full}. Seat: ${ticket.seat.seat_number}`,
                 url: window.location.href
             });
         } catch (error) {
@@ -277,7 +279,7 @@ const isAlertOpen = ref(false);
                                         'bg-primary/10 border border-primary/30' :
                                         'hover:bg-muted/50 border border-transparent'"
                                 >
-                                    <div class="font-medium truncate">{{ ticket.show.concert.artist }}</div>
+                                    <div class="font-medium truncate">{{ ticket.show.concert.artist.name }}</div>
                                     <div class="flex items-center text-xs text-muted-foreground mt-1">
                                         <CalendarDays class="h-3 w-3 mr-1" />
                                         <span>{{ formatDate(ticket.show.start).month }} {{ formatDate(ticket.show.start).day }}, {{ formatDate(ticket.show.start).time }}</span>
@@ -327,7 +329,7 @@ const isAlertOpen = ref(false);
                                 <!-- Ticket Header -->
                                 <div class="flex justify-between items-start mb-6">
                                     <div>
-                                        <h3 class="text-xl font-bold">{{ getActiveTicket().show.concert.artist }}</h3>
+                                        <h3 class="text-xl font-bold">{{ getActiveTicket().show.concert.artist?.name }}</h3>
                                         <p class="text-muted-foreground">{{ getActiveTicket().show.concert.location?.name || 'Venue' }}</p>
                                     </div>
                                     <div class="bg-primary/10 px-3 py-1 rounded-full text-primary text-sm font-medium">

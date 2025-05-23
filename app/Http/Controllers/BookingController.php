@@ -17,7 +17,7 @@ class BookingController extends Controller
     public function index()
     {
         $bookings = Auth::user()->bookings()
-            ->with(['tickets.show.concert', 'tickets.seat.row'])
+            ->with(['tickets.show.concert.artist', 'tickets.seat.row'])
             ->orderByDesc('created_at')
             ->get();
 
@@ -32,34 +32,50 @@ class BookingController extends Controller
             'reservation_id' => 'required|exists:reservations,id',
         ]);
 
-        $reservation = Reservation::with(['show.concert', 'seat'])
+        $reservation = Reservation::with(['show.concert.artist', 'seat'])
             ->findOrFail($request->reservation_id);
 
-        // Check if the reservation belongs to the user
         if ($reservation->user_id !== Auth::id()) {
             return redirect()->route('dashboard')
                 ->with('error', 'This reservation does not belong to you.');
         }
 
-        // Check if the reservation is still valid
         if ($reservation->reserved_until < now()) {
             return redirect()->route('dashboard')
                 ->with('error', 'This reservation has expired.');
         }
 
-        // Get all related reservations for the same show by this user
         $relatedReservations = Reservation::where('user_id', Auth::id())
             ->where('show_id', $reservation->show_id)
             ->where('reserved_until', '>=', now())
             ->with(['seat'])
             ->get();
 
-        // Get the authenticated user's email
         $userEmail = Auth::user()->email;
 
         return Inertia::render('bookings/Create', [
-            'reservation' => $reservation,
-            'relatedReservations' => $relatedReservations,
+            'reservation' => [
+                'id' => $reservation->id,
+                'show' => [
+                    'id' => $reservation->show->id,
+                    'start' => $reservation->show->start,
+                    'concert' => [
+                        'artist' => $reservation->show->concert->artist,
+                    ],
+                ],
+                'seat' => [
+                    'seat_number' => $reservation->seat->seat_number,
+                ],
+                'reserved_until' => $reservation->reserved_until->toISOString(),
+            ],
+            'relatedReservations' => $relatedReservations->map(function($r) {
+                return [
+                    'id' => $r->id,
+                    'seat' => [
+                        'seat_number' => $r->seat->seat_number,
+                    ],
+                ];
+            }),
             'userEmail' => $userEmail,
         ]);
     }
@@ -77,7 +93,6 @@ class BookingController extends Controller
             'email' => 'required|email|max:255',
         ]);
 
-        // Get all reservations
         $reservations = Reservation::whereIn('id', $validated['reservation_ids'])->get();
 
         // Validate all reservations
@@ -98,7 +113,6 @@ class BookingController extends Controller
             'user_id' => Auth::id(),
         ]);
 
-        // Create tickets for all reservations
         foreach ($reservations as $reservation) {
             Ticket::create([
                 'booking_id' => $booking->id,
@@ -108,7 +122,6 @@ class BookingController extends Controller
                 'name' => $validated['name'],
             ]);
 
-            // Delete the reservation after creating the ticket
             $reservation->delete();
         }
 
@@ -123,8 +136,7 @@ class BookingController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        // Load related data
-        $booking->load(['tickets.show.concert', 'tickets.seat.row']);
+        $booking->load(['tickets.show.concert.artist', 'tickets.seat.row']);
 
         return Inertia::render('bookings/Show', [
             'booking' => $booking,
@@ -151,7 +163,6 @@ class BookingController extends Controller
             return back()->withErrors(['cancel' => 'Cannot cancel bookings less than 24 hours before the show.']);
         }
 
-        // Delete tickets first, then the booking
         $booking->tickets()->delete();
         $booking->delete();
 

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Concert;
+use App\Models\Artist;
+use App\Models\Location;
 use App\Models\Ticket;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -12,23 +14,50 @@ class ConcertController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Concert::with(['location', 'shows'])
-            ->orderBy('artist');
+        $query = Concert::with(['location', 'shows', 'artist'])
+            ->join('artists', 'concerts.artist_id', '=', 'artists.id')
+            ->orderBy('artists.name')
+            ->select('concerts.*');
+
+        // Search functionality
+        if ($request->has('search') && !empty($request->input('search'))) {
+            $searchTerm = '%' . $request->input('search') . '%';
+            $query->where(function($q) use ($searchTerm) {
+                $q->whereHas('artist', function($artistQuery) use ($searchTerm) {
+                    $artistQuery->where('name', 'like', $searchTerm);
+                })
+                    ->orWhereHas('location', function($locationQuery) use ($searchTerm) {
+                        $locationQuery->where('name', 'like', $searchTerm);
+                    });
+            });
+        }
 
         // Filter by artist
-        if ($request->has('artist')) {
-            $query->where('artist', 'like', '%' . $request->input('artist') . '%');
+        if ($request->has('artist') && !empty($request->input('artist'))) {
+            $query->whereHas('artist', function ($q) use ($request) {
+                $q->where('name', 'like', '%' . $request->input('artist') . '%');
+            });
+        }
+
+        // Filter by artist_id
+        if ($request->has('artist_id') && !empty($request->input('artist_id'))) {
+            $query->where('artist_id', $request->input('artist_id'));
         }
 
         // Filter by location
-        if ($request->has('location')) {
+        if ($request->has('location') && !empty($request->input('location'))) {
             $query->whereHas('location', function ($q) use ($request) {
                 $q->where('name', 'like', '%' . $request->input('location') . '%');
             });
         }
 
+        // Filter by location_id
+        if ($request->has('location_id') && !empty($request->input('location_id'))) {
+            $query->where('location_id', $request->input('location_id'));
+        }
+
         // Filter by date
-        if ($request->has('date')) {
+        if ($request->has('date') && !empty($request->input('date'))) {
             $query->whereHas('shows', function ($q) use ($request) {
                 $q->whereDate('start', $request->input('date'));
             });
@@ -58,7 +87,7 @@ class ConcertController extends Controller
                 if (!isset($userBookings[$concertId])) {
                     $userBookings[$concertId] = [
                         'concert_id' => $concertId,
-                        'concert_name' => $ticket->show->concert->artist,
+                        'concert_name' => $ticket->show->concert->artist->name,
                         'shows' => []
                     ];
                 }
@@ -87,10 +116,16 @@ class ConcertController extends Controller
             }
         }
 
+        // Get all locations and artists for filter dropdowns
+        $locations = Location::orderBy('name')->get();
+        $artists = Artist::orderBy('name')->get();
+
         return Inertia::render('concerts/Index', [
             'concerts' => $concerts,
-            'filters' => $request->only(['location', 'date', 'artist']),
-            'userBookings' => $userBookings
+            'filters' => $request->only(['location', 'date', 'artist', 'search', 'location_id', 'artist_id']),
+            'userBookings' => $userBookings,
+            'locations' => $locations,
+            'artists' => $artists
         ]);
     }
 
@@ -99,6 +134,7 @@ class ConcertController extends Controller
         // Load concert with location, shows, and the related seats and rows for each show
         $concert->load([
             'location',
+            'artist',
             'shows' => function ($query) {
                 $query->where('start', '>=', now())->orderBy('start');
             },
@@ -131,7 +167,7 @@ class ConcertController extends Controller
             if ($userTickets->count() > 0) {
                 $userBookings = [
                     'concert_id' => $concert->id,
-                    'concert_name' => $concert->artist,
+                    'concert_name' => $concert->artist->name,
                     'shows' => []
                 ];
 
