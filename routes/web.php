@@ -16,3 +16,4 @@ Route::get('/dashboard', function (DashboardService $dashboardService) {
 require __DIR__ . '/events.php';
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';
+require __DIR__.'/admin.php';

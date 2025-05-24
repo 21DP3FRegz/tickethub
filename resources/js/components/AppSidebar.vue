@@ -4,9 +4,20 @@ import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
-import { Link } from '@inertiajs/vue3';
-import { LayoutGrid, Music, Ticket, ShoppingCart } from 'lucide-vue-next';
+import { Link, usePage } from '@inertiajs/vue3';
+import { LayoutGrid, Music, Ticket, Settings } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
+import { computed } from 'vue';
+
+const page = usePage();
+
+const user = computed(() => page.props.auth?.user);
+
+// Check if user has admin role
+const isAdmin = computed(() => {
+    if (!user.value || !user.value.roles) return false;
+    return user.value.roles.some(role => role.name === 'administrator');
+});
 
 const mainNavItems: NavItem[] = [
     {
@@ -26,8 +37,24 @@ const mainNavItems: NavItem[] = [
     },
 ];
 
-// Empty footer nav items array (to be filled later)
-const footerNavItems: NavItem[] = [];
+// Add admin link if user is admin
+const footerNavItems = computed(() => {
+    const items: NavItem[] = [];
+
+    if (isAdmin.value) {
+        items.push({
+            title: 'Admin Panel',
+            href: route('admin.dashboard'),
+            icon: Settings,
+        });
+    }
+
+    return items;
+});
+
+console.log('User:', user.value);
+console.log('Is Admin:', isAdmin.value);
+console.log('Footer Items:', footerNavItems.value);
 </script>
 
 <template>
