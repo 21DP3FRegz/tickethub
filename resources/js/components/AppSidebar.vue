@@ -51,10 +51,6 @@ const footerNavItems = computed(() => {
 
     return items;
 });
-
-console.log('User:', user.value);
-console.log('Is Admin:', isAdmin.value);
-console.log('Footer Items:', footerNavItems.value);
 </script>
 
 <template>
