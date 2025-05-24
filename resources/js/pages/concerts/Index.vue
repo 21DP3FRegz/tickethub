@@ -13,7 +13,11 @@ import {
     Calendar,
     ArrowUpDown,
     ArrowUp,
-    ArrowDown
+    ArrowDown,
+    Star,
+    Zap,
+    Heart,
+    Headphones
 } from 'lucide-vue-next';
 import debounce from 'lodash/debounce';
 
@@ -204,6 +208,64 @@ const getShowDuration = (show) => {
     // Convert to minutes
     return Math.round(durationMs / (1000 * 60));
 };
+
+// Subtle color themes - much more muted
+const getCardTheme = (index: number) => {
+    const themes = [
+        {
+            headerBg: 'bg-primary/8',
+            textColor: 'text-primary/80',
+            accentBg: 'bg-primary/5',
+            borderColor: 'border-primary/15',
+            buttonBg: 'bg-primary/90',
+            icon: Star
+        },
+        {
+            headerBg: 'bg-accent/8',
+            textColor: 'text-accent/80',
+            accentBg: 'bg-accent/5',
+            borderColor: 'border-accent/15',
+            buttonBg: 'bg-accent/90',
+            icon: Zap
+        },
+        {
+            headerBg: 'bg-chart-4/8',
+            textColor: 'text-chart-4/80',
+            accentBg: 'bg-chart-4/5',
+            borderColor: 'border-chart-4/15',
+            buttonBg: 'bg-chart-4/90',
+            icon: Heart
+        },
+        {
+            headerBg: 'bg-chart-2/8',
+            textColor: 'text-chart-2/80',
+            accentBg: 'bg-chart-2/5',
+            borderColor: 'border-chart-2/15',
+            buttonBg: 'bg-chart-2/90',
+            icon: Headphones
+        }
+    ];
+    return themes[index % themes.length];
+};
+
+// Style approach selector
+const styleApproach = ref('subtle-tinted');
+
+// Theme-aware Date Badge styling
+const getDateBadgeClasses = () => {
+    return {
+        // Light theme: Semi-transparent white with dark text
+        light: 'bg-white/95 text-foreground border-white/30 shadow-lg backdrop-blur-sm',
+        // Dark theme: Semi-transparent dark with light text
+        dark: 'dark:bg-card/95 dark:text-card-foreground dark:border-border/30 dark:shadow-xl dark:backdrop-blur-sm'
+    };
+};
+
+// Get complete date badge classes
+const dateBadgeClasses = computed(() => {
+    const classes = getDateBadgeClasses();
+    return `absolute top-4 right-4 rounded-lg px-3 py-2 text-sm flex items-center border transition-all duration-200 ${classes.light} ${classes.dark}`;
+});
 </script>
 
 <template>
@@ -213,10 +275,21 @@ const getShowDuration = (show) => {
             <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
                 <h1 class="text-2xl font-bold mb-2 md:mb-0">Upcoming Concerts</h1>
 
-                <div class="flex items-center space-x-2">
-          <span class="text-sm text-muted-foreground">
-            {{ concerts.length }} {{ concerts.length === 1 ? 'concert' : 'concerts' }} found
-          </span>
+                <div class="flex items-center space-x-4">
+                    <!-- Style Selector for Demo -->
+                    <select
+                        v-model="styleApproach"
+                        class="text-xs px-2 py-1 bg-secondary rounded-md border border-border"
+                    >
+                        <option value="subtle-tinted">Subtle Tinted</option>
+                        <option value="soft-accent">Soft Accent</option>
+                        <option value="minimal-border">Minimal Border</option>
+                        <option value="gentle-pattern">Gentle Pattern</option>
+                    </select>
+
+                    <span class="text-sm text-muted-foreground">
+                        {{ concerts.length }} {{ concerts.length === 1 ? 'concert' : 'concerts' }} found
+                    </span>
                 </div>
             </div>
 
@@ -366,88 +439,171 @@ const getShowDuration = (show) => {
                 </div>
             </div>
 
-            <!-- Enhanced Concert List -->
+            <!-- Concert List with Theme-Aware Date Badges -->
             <div v-if="concerts.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div
-                    v-for="concert in concerts"
+                    v-for="(concert, index) in concerts"
                     :key="concert.id"
-                    class="bg-card rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-border group"
+                    class="bg-card rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 border border-border group"
+                    :class="styleApproach === 'minimal-border' ? getCardTheme(index).borderColor : 'hover:border-primary/20'"
                 >
-                    <!-- Concert Card Header with Gradient Background -->
-                    <div class="h-32 bg-gradient-to-r from-primary/20 to-accent/10 relative overflow-hidden">
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                    <!-- APPROACH 1: Subtle Tinted Headers -->
+                    <div v-if="styleApproach === 'subtle-tinted'" :class="['h-32 relative overflow-hidden', getCardTheme(index).headerBg]">
+                        <!-- Very subtle overlay -->
+                        <div class="absolute inset-0 bg-foreground/2"></div>
 
-                        <!-- Date Badge -->
-                        <div class="absolute top-3 right-3 bg-black/60 backdrop-blur-sm rounded-md px-2 py-1 text-white text-xs flex items-center">
-                            <Calendar class="h-3 w-3 mr-1" />
-                            {{ formatShortDate(getNextShowDate(concert)) }}
+                        <!-- Theme-Aware Date Badge -->
+                        <div :class="dateBadgeClasses">
+                            <Calendar class="h-4 w-4 mr-2 text-primary dark:text-primary" />
+                            <span class="font-medium">{{ formatShortDate(getNextShowDate(concert)) }}</span>
                         </div>
 
                         <!-- Artist and Venue Info -->
-                        <div class="absolute bottom-0 left-0 p-4 text-white">
-                            <h2 class="text-xl font-bold truncate group-hover:text-primary transition-colors">
+                        <div class="absolute bottom-0 left-0 p-5 text-foreground">
+                            <h2 class="text-xl font-bold truncate mb-1">
                                 {{ getArtistName(concert) }}
                             </h2>
-                            <div class="flex items-center text-sm text-white/80 mt-1">
-                                <MapPin class="h-3.5 w-3.5 mr-1 flex-shrink-0" />
+                            <div class="flex items-center text-sm text-muted-foreground">
+                                <MapPin class="h-4 w-4 mr-2 flex-shrink-0" />
                                 <span class="truncate">{{ concert.location.name }}</span>
                             </div>
                         </div>
                     </div>
 
-                    <div class="p-4">
+                    <!-- APPROACH 2: Soft Accent -->
+                    <div v-else-if="styleApproach === 'soft-accent'" class="h-32 bg-muted/30 relative overflow-hidden">
+                        <!-- Very subtle colored accent bar -->
+                        <div :class="['absolute top-0 left-0 w-full h-0.5', getCardTheme(index).buttonBg]"></div>
+
+                        <!-- Small accent icon -->
+                        <div :class="['absolute top-4 right-16 p-2 rounded-full', getCardTheme(index).accentBg]">
+                            <component :is="getCardTheme(index).icon" :class="['h-4 w-4', getCardTheme(index).textColor]" />
+                        </div>
+
+                        <!-- Theme-Aware Date Badge -->
+                        <div :class="dateBadgeClasses">
+                            <Calendar class="h-4 w-4 mr-2 text-primary dark:text-primary" />
+                            <span class="font-medium">{{ formatShortDate(getNextShowDate(concert)) }}</span>
+                        </div>
+
+                        <!-- Artist and Venue Info -->
+                        <div class="absolute bottom-0 left-0 p-5 text-foreground">
+                            <h2 class="text-xl font-bold truncate mb-1">
+                                {{ getArtistName(concert) }}
+                            </h2>
+                            <div class="flex items-center text-sm text-muted-foreground">
+                                <MapPin class="h-4 w-4 mr-2 flex-shrink-0" />
+                                <span class="truncate">{{ concert.location.name }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- APPROACH 3: Minimal Border -->
+                    <div v-else-if="styleApproach === 'minimal-border'" class="h-32 bg-background relative overflow-hidden border-l-2" :class="getCardTheme(index).borderColor.replace('border-', 'border-l-')">
+                        <!-- Very subtle background tint -->
+                        <div :class="['absolute inset-0 opacity-3', getCardTheme(index).headerBg]"></div>
+
+                        <!-- Small category indicator -->
+                        <div :class="['absolute top-4 left-4 p-1.5 rounded-md', getCardTheme(index).accentBg]">
+                            <component :is="getCardTheme(index).icon" :class="['h-4 w-4', getCardTheme(index).textColor]" />
+                        </div>
+
+                        <!-- Theme-Aware Date Badge -->
+                        <div :class="dateBadgeClasses">
+                            <Calendar class="h-4 w-4 mr-2 text-primary dark:text-primary" />
+                            <span class="font-medium">{{ formatShortDate(getNextShowDate(concert)) }}</span>
+                        </div>
+
+                        <!-- Artist and Venue Info -->
+                        <div class="absolute bottom-0 left-0 p-5 text-foreground">
+                            <h2 class="text-xl font-bold truncate mb-1">
+                                {{ getArtistName(concert) }}
+                            </h2>
+                            <div class="flex items-center text-sm text-muted-foreground">
+                                <MapPin class="h-4 w-4 mr-2 flex-shrink-0" />
+                                <span class="truncate">{{ concert.location.name }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- APPROACH 4: Gentle Pattern -->
+                    <div v-else class="h-32 bg-muted/20 relative overflow-hidden">
+                        <!-- Very subtle geometric shapes -->
+                        <div :class="['absolute -top-6 -right-6 w-16 h-16 rounded-full opacity-5', getCardTheme(index).buttonBg]"></div>
+                        <div :class="['absolute -bottom-3 -left-3 w-12 h-12 rounded-full opacity-3', getCardTheme(index).buttonBg]"></div>
+                        <div :class="['absolute top-1/2 left-1/2 w-6 h-6 rotate-45 opacity-2', getCardTheme(index).buttonBg]"></div>
+
+                        <!-- Theme-Aware Date Badge -->
+                        <div :class="dateBadgeClasses">
+                            <Calendar class="h-4 w-4 mr-2 text-primary dark:text-primary" />
+                            <span class="font-medium">{{ formatShortDate(getNextShowDate(concert)) }}</span>
+                        </div>
+
+                        <!-- Artist and Venue Info -->
+                        <div class="absolute bottom-0 left-0 p-5 text-foreground">
+                            <h2 class="text-xl font-bold truncate mb-1">
+                                {{ getArtistName(concert) }}
+                            </h2>
+                            <div class="flex items-center text-sm text-muted-foreground">
+                                <MapPin class="h-4 w-4 mr-2 flex-shrink-0" />
+                                <span class="truncate">{{ concert.location.name }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-5">
                         <!-- User's Bookings for this concert -->
-                        <div v-if="hasBookingsForConcert(concert.id)" class="mb-4 p-3 bg-secondary/50 border border-secondary rounded-md">
-                            <div class="flex items-center text-secondary-foreground mb-2">
-                                <Ticket class="h-4 w-4 mr-1" />
+                        <div v-if="hasBookingsForConcert(concert.id)" :class="['mb-4 p-3 border rounded-lg', getCardTheme(index).accentBg, getCardTheme(index).borderColor]">
+                            <div :class="['flex items-center mb-2', getCardTheme(index).textColor]">
+                                <Ticket class="h-4 w-4 mr-2" />
                                 <span class="font-medium text-sm">Your Booked Tickets</span>
                             </div>
-                            <div v-for="(show, index) in getBookingsForConcert(concert.id).shows" :key="index" class="text-xs text-secondary-foreground mb-1">
+                            <div v-for="(show, showIndex) in getBookingsForConcert(concert.id).shows" :key="showIndex" :class="['text-xs mb-1', getCardTheme(index).textColor, 'opacity-70']">
                                 <div class="font-medium">{{ show.show_date }}</div>
                                 <div class="flex flex-wrap gap-1 mt-1">
-                  <span v-for="(seat, seatIndex) in show.seats" :key="seatIndex"
-                        class="px-2 py-0.5 bg-secondary border border-secondary/50 rounded-full">
-                    {{ seat.row_name }}{{ seat.seat_number }}
-                  </span>
+                                    <span v-for="(seat, seatIndex) in show.seats" :key="seatIndex"
+                                          :class="['px-2 py-0.5 border rounded-full text-xs', getCardTheme(index).accentBg, getCardTheme(index).borderColor, getCardTheme(index).textColor]">
+                                        {{ seat.row_name }}{{ seat.seat_number }}
+                                    </span>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Show Details -->
                         <div v-if="concert.shows && concert.shows.length > 0" class="mb-4">
-                            <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center justify-between mb-3">
                                 <p class="text-xs uppercase tracking-wider text-muted-foreground font-medium">Next Show</p>
-                                <span v-if="concert.shows.length > 1" class="text-xs text-primary">
-                  +{{ concert.shows.length - 1 }} more
-                </span>
+                                <span v-if="concert.shows.length > 1" :class="['text-xs font-medium', getCardTheme(index).textColor]">
+                                    +{{ concert.shows.length - 1 }} more
+                                </span>
                             </div>
 
                             <!-- Next Show Card -->
-                            <div class="bg-muted/30 rounded-md p-3 border border-border">
+                            <div class="bg-muted/30 rounded-lg p-4 border border-border">
                                 <div class="flex justify-between items-center">
                                     <div class="flex items-center">
-                                        <div class="bg-primary/10 rounded-md p-1.5 mr-3">
-                                            <Clock class="h-5 w-5 text-primary" />
+                                        <div :class="['rounded-lg p-2 mr-3', getCardTheme(index).accentBg]">
+                                            <Clock :class="['h-4 w-4', getCardTheme(index).textColor]" />
                                         </div>
                                         <div>
-                                            <div class="font-medium">{{ formatTime(getNextShowDate(concert)) }}</div>
+                                            <div class="font-medium text-sm">{{ formatTime(getNextShowDate(concert)) }}</div>
                                             <div class="text-xs text-muted-foreground">{{ formatDate(getNextShowDate(concert)) }}</div>
                                         </div>
                                     </div>
-                                    <div class="text-xs px-2 py-1 bg-primary/10 rounded-full text-primary">
+                                    <div :class="['text-xs px-3 py-1 rounded-full font-medium', getCardTheme(index).accentBg, getCardTheme(index).textColor]">
                                         {{ concert.shows[0].end ? `${getShowDuration(concert.shows[0])} min` : 'Live' }}
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div v-else class="mb-4 p-3 bg-muted/30 rounded-md border border-border text-center">
+                        <div v-else class="mb-4 p-4 bg-muted/30 rounded-lg border border-border text-center">
                             <p class="text-sm text-muted-foreground">No upcoming shows</p>
                         </div>
 
                         <!-- Action Button -->
                         <Link
                             :href="route('concerts.show', concert.id)"
-                            class="block w-full text-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                            :class="['block w-full text-center px-4 py-3 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 font-medium shadow-sm hover:shadow-md', getCardTheme(index).buttonBg, 'text-white hover:opacity-95']"
                         >
                             View Details
                         </Link>

@@ -4,9 +4,9 @@ import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 import { Button } from '@/Components/ui/button';
 import {
     CalendarDays, MapPin, Ticket, User, Clock, CreditCard,
-    Home, Printer, Share2, QrCode, ArrowLeft, AlertCircle
+    Printer, QrCode, ArrowLeft, AlertCircle
 } from 'lucide-vue-next';
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted } from 'vue';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -83,24 +83,6 @@ const formatDate = (dateString) => {
 const printTicket = (ticketId) => {
     // In a real implementation, this would open a print-friendly version
     window.print();
-};
-
-// Function to share ticket
-const shareTicket = async (ticket) => {
-    if (navigator.share) {
-        try {
-            await navigator.share({
-                title: `Ticket for ${ticket.show.concert.artist.name}`,
-                text: `My ticket for ${ticket.show.concert.artist.name} on ${formatDate(ticket.show.start).full}. Seat: ${ticket.seat.seat_number}`,
-                url: window.location.href
-            });
-        } catch (error) {
-            console.error('Error sharing:', error);
-        }
-    } else {
-        // Fallback for browsers that don't support the Web Share API
-        alert('Sharing is not supported in your browser. You can copy the link manually.');
-    }
 };
 
 // Get ticket ID from URL query parameter
@@ -311,15 +293,6 @@ const isAlertOpen = ref(false);
                                 >
                                     <Printer class="h-4 w-4 mr-1" />
                                     Print
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    @click="shareTicket(getActiveTicket())"
-                                    class="flex items-center"
-                                >
-                                    <Share2 class="h-4 w-4 mr-1" />
-                                    Share
                                 </Button>
                             </div>
                         </div>
