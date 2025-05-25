@@ -205,28 +205,6 @@ const getTotalReservations = () => {
 
             <!-- Sidebar -->
             <div class="space-y-6">
-                <!-- Artist Image -->
-                <div class="bg-card rounded-lg border border-border shadow-sm p-6">
-                    <h2 class="text-lg font-semibold mb-4">Artist Image</h2>
-
-                    <div v-if="concert.artist.image_url" class="aspect-square rounded-lg overflow-hidden bg-muted">
-                        <img
-                            :src="concert.artist.image_url"
-                            :alt="concert.artist.name"
-                            class="w-full h-full object-cover"
-                            @error="$event.target.style.display = 'none'"
-                        />
-                    </div>
-
-                    <div v-else class="aspect-square rounded-lg bg-muted flex items-center justify-center">
-                        <div class="text-center">
-                            <div class="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-2">
-                                <span class="text-2xl font-bold text-primary">{{ concert.artist.name.charAt(0) }}</span>
-                            </div>
-                            <p class="text-sm text-muted-foreground">No image available</p>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Statistics -->
                 <div class="bg-card rounded-lg border border-border shadow-sm p-6">
