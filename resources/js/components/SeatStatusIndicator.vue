@@ -51,7 +51,7 @@ const statusClasses = computed(() => {
         case 'your-booking':
             return 'bg-accent text-accent-foreground cursor-not-allowed ring-1 ring-accent/50';
         case 'reserved':
-            return 'bg-secondary text-secondary-foreground cursor-not-allowed';
+            return 'bg-yellow-300 text-secondary-foreground cursor-not-allowed';
         case 'your-reservation':
             return 'bg-secondary ring-1 ring-secondary-foreground cursor-not-allowed text-secondary-foreground';
         case 'available':

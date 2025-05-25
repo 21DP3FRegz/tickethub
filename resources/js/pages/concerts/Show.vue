@@ -397,12 +397,14 @@ const getUserBookedSeatsForShow = (showId: number) => {
                                             </div>
                                             <template v-else>
                                                 <!-- Stage Area -->
-                                                <div class="mb-6 relative">
-                                                    <div class="w-full h-12 bg-primary/20 rounded-t-xl flex items-center justify-center relative overflow-hidden">
-                                                        <div class="absolute inset-0 bg-gradient-to-b from-primary/30 to-transparent"></div>
-                                                        <div class="relative z-10 font-semibold text-primary uppercase tracking-wider">Stage</div>
+                                                <div class="mb-6 relative text-center">
+                                                    <div class="relative z-10 font-bold text-primary uppercase tracking-wider">Stage</div>
+                                                    <!-- Curved line representing stage edge -->
+                                                    <div class="relative w-full h-12 flex justify-center">
+                                                        <svg class="w-full h-full" viewBox="0 0 300 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M30 12 Q150 36 270 12" stroke="hsl(265 89% 50%)" stroke-width="3" fill="none" class="text-primary"/>
+                                                        </svg>
                                                     </div>
-                                                    <div class="w-full h-3 bg-primary/40 rounded-b-3xl"></div>
                                                 </div>
 
                                                 <!-- Seating Area -->
@@ -473,12 +475,8 @@ const getUserBookedSeatsForShow = (showId: number) => {
                                                             <span class="text-xs">Booked</span>
                                                         </div>
                                                         <div class="flex items-center">
-                                                            <div class="w-4 h-4 bg-secondary rounded mr-2"></div>
+                                                            <div class="w-4 h-4 bg-yellow-300 rounded mr-2"></div>
                                                             <span class="text-xs">Reserved</span>
-                                                        </div>
-                                                        <div class="flex items-center">
-                                                            <div class="w-4 h-4 bg-accent rounded mr-2"></div>
-                                                            <span class="text-xs">Your Booking</span>
                                                         </div>
                                                         <div class="flex items-center">
                                                             <div class="w-4 h-4 bg-primary/70 ring-2 ring-primary rounded mr-2"></div>
