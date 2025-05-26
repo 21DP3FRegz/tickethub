@@ -2,7 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { CalendarDays, Clock, MapPin, Ticket, X } from 'lucide-vue-next';
+import { CalendarDays, Clock, MapPin, Ticket } from 'lucide-vue-next';
 import { ref, computed } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/layouts/AdminLayout.vue';
-import { Button } from '@/Components/ui/button';
+import { Button } from '@/components/ui/button';
 import { ArrowLeft, Edit, MapPin, Calendar } from 'lucide-vue-next';
 
-const props = defineProps<{
+defineProps<{
     location: {
         id: number;
         name: string;

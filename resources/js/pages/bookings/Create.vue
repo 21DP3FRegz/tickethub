@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
-import { Button } from '@/Components/ui/button';
-import { Input } from '@/Components/ui/input';
-import { Label } from '@/Components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
-import { CalendarDays, MapPin, Clock, CreditCard, User, Home, Ticket } from 'lucide-vue-next';
+import { CalendarDays, Clock, CreditCard, User, Home, Ticket } from 'lucide-vue-next';
 
 const props = defineProps<{
     reservation: {

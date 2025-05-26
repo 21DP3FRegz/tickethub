@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Head, Link, useForm, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
-import { Button } from '@/Components/ui/button';
+import { Button } from '@/components/ui/button';
 import {
     CalendarDays, MapPin, Ticket, User, Clock, CreditCard,
     Printer, QrCode, ArrowLeft, AlertCircle
@@ -17,7 +17,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
     AlertDialogTrigger,
-} from "@/Components/ui/alert-dialog";
+} from "@/components/ui/alert-dialog";
 
 const props = defineProps<{
     booking: {
@@ -55,7 +55,6 @@ const props = defineProps<{
     };
 }>();
 
-const page = usePage();
 const form = useForm({});
 
 const cancelBooking = () => {
@@ -80,7 +79,7 @@ const formatDate = (dateString) => {
 };
 
 // Function to print ticket
-const printTicket = (ticketId) => {
+const printTicket = () => {
     // In a real implementation, this would open a print-friendly version
     window.print();
 };
@@ -130,9 +129,6 @@ const setActiveTicket = (ticketId) => {
 const getActiveTicket = () => {
     return props.booking.tickets.find(ticket => ticket.id === activeTicketId.value);
 };
-
-// Alert dialog state
-const isAlertOpen = ref(false);
 </script>
 
 <template>
@@ -288,7 +284,7 @@ const isAlertOpen = ref(false);
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    @click="printTicket(getActiveTicket().id)"
+                                    @click="printTicket"
                                     class="flex items-center"
                                 >
                                     <Printer class="h-4 w-4 mr-1" />

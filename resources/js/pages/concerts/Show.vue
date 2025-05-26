@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
-import { Button } from '@/Components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/Components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import SeatStatusIndicator from '@/components/SeatStatusIndicator.vue';
 import { ref, onMounted, computed } from 'vue';
 import { CalendarDays, MapPin, Music, Clock, Ticket, X, Calendar, AlertCircle } from 'lucide-vue-next';

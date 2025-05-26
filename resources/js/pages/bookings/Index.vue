@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { Head, Link, useForm, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
-import { Button } from '@/Components/ui/button';
-import { CalendarDays, MapPin, Ticket, User, Clock, AlertCircle, QrCode, ArrowRight } from 'lucide-vue-next';
+import { CalendarDays, MapPin, Ticket, User, Clock, ArrowRight } from 'lucide-vue-next';
 
-const props = defineProps<{
+defineProps<{
     bookings: Array<{
         id: number;
         name: string;

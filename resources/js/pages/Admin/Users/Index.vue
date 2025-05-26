@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import AdminLayout from '@/layouts/AdminLayout.vue';
-import { Button } from '@/Components/ui/button';
-import { Plus, Edit, Trash2, Eye, User, Mail, Shield } from 'lucide-vue-next';
+import { Button } from '@/components/ui/button';
+import { Plus, Edit, Trash2, Eye, User, Mail } from 'lucide-vue-next';
 
-const props = defineProps<{
+defineProps<{
     users: {
         data: Array<{
             id: number;
