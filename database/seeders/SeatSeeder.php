@@ -20,7 +20,7 @@ class SeatSeeder extends Seeder
                     'show_id' => $row->show_id,
                     'row_id' => $row->id,
                     'seat_number' => $i,
-                    'label' => $row->name . $i, // e.g., "A1", "B2"
+                    'label' => $row->name . $i, // e.g., "A1", "VIP2"
                 ]);
             }
         }
