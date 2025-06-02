@@ -412,12 +412,12 @@ const getUserBookedSeatsForShow = (showId: number) => {
                                                     <div class="min-w-max">
                                                         <div v-for="row in getSortedRows(show)" :key="row.id" class="mb-2 flex items-center">
                                                             <!-- Row Label -->
-                                                            <div class="w-10 text-center font-medium text-sm mr-2">
+                                                            <div class="w-10 text-left font-medium text-sm mr-6">
                                                                 {{ row.name }}
                                                             </div>
 
                                                             <!-- Seats in Row -->
-                                                            <div class="flex gap-1">
+                                                            <div class="flex-1 flex justify-center gap-1">
                                                                 <button
                                                                     v-for="seat in getSortedSeats(show, row.id)"
                                                                     :key="seat.id"
