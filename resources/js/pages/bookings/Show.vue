@@ -78,10 +78,9 @@ const formatDate = (dateString) => {
     };
 };
 
-// Function to print ticket
 const printTicket = () => {
-    // In a real implementation, this would open a print-friendly version
-    window.print();
+    // Navigate to the print page
+    router.visit(route('bookings.print', props.booking.id));
 };
 
 // Get ticket ID from URL query parameter

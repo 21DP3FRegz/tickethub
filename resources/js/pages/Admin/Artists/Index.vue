@@ -2,7 +2,7 @@
 import { Head, Link, router } from '@inertiajs/vue3';
 import AdminLayout from '@/layouts/AdminLayout.vue';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2, Eye } from 'lucide-vue-next';
+import { Plus, Edit, Trash2, Eye, User } from 'lucide-vue-next';
 
 defineProps<{
     artists: {
@@ -63,11 +63,8 @@ const deleteArtist = (id: number) => {
                         >
                             <td class="p-4">
                                 <div class="flex items-center">
-                                    <div v-if="artist.image_url" class="w-10 h-10 rounded-full bg-muted mr-3 overflow-hidden">
-                                        <img :src="artist.image_url" :alt="artist.name" class="w-full h-full object-cover" />
-                                    </div>
-                                    <div v-else class="w-10 h-10 rounded-full bg-muted mr-3 flex items-center justify-center">
-                                        <span class="text-sm font-medium">{{ artist.name.charAt(0) }}</span>
+                                    <div class="w-10 h-10 rounded-full bg-muted mr-3 flex items-center justify-center">
+                                        <User class="h-5 w-5 text-muted-foreground" />
                                     </div>
                                     <div>
                                         <p class="font-medium text-foreground">{{ artist.name }}</p>

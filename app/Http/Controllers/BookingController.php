@@ -143,6 +143,20 @@ class BookingController extends Controller
         ]);
     }
 
+    public function print(Booking $booking)
+    {
+        // Authorize that the user can view this booking
+        if (Gate::denies('view', $booking)) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $booking->load(['tickets.show.concert.artist', 'tickets.seat.row', 'tickets.show.concert.location']);
+
+        return Inertia::render('bookings/Print', [
+            'booking' => $booking,
+        ]);
+    }
+
     public function destroy(Booking $booking)
     {
         if (Gate::denies('delete', $booking)) {

@@ -19,5 +19,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/bookings/create', [\App\Http\Controllers\BookingController::class, 'create'])->name('bookings.create');
     Route::post('/bookings', [\App\Http\Controllers\BookingController::class, 'store'])->name('bookings.store');
     Route::get('/bookings/{booking}', [\App\Http\Controllers\BookingController::class, 'show'])->name('bookings.show');
+    Route::get('/bookings/{booking}/print', [\App\Http\Controllers\BookingController::class, 'print'])->name('bookings.print');
     Route::delete('/bookings/{booking}', [\App\Http\Controllers\BookingController::class, 'destroy'])->name('bookings.destroy');
 });
